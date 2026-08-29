@@ -261,11 +261,12 @@
     width: 100%; overflow-x: auto;
     border: 1px solid var(--border-lit); border-radius: var(--radius);
     background: var(--bg-3);
-    display:flex; align-items:center; justify-content:center;
+    display:flex; align-items:center; justify-content:center; flex-wrap: wrap; gap: 14px;
+    padding: 14px;
   }
   .tile-detail .img-frame.icon-only{ aspect-ratio: 1; max-width: 160px; }
   .tile-detail .img-frame svg{ width: 84px; height:84px; color: var(--eov); }
-  .tile-detail .img-frame img{ display:block; max-width: none; width: auto; max-height: 70vh; }
+  .tile-detail .img-frame img{ display:block; max-width: 100%; width: auto; max-height: 60vh; border-radius: 4px; }
   .tile-detail .img-hint{ font-size: 0.72rem; color: var(--text-faint); margin-top: -8px; }
 
   footer{ padding: 32px 0; text-align:center; color: var(--text-faint); font-size: 0.78rem; }
@@ -379,9 +380,17 @@
         <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 2l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-1.5L12 2z"/></svg>
         <div class="tname">Odłamkowanie</div>
       </div>
-      <div class="tile placeholder">
-        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" style="opacity:.4"><path d="M12 5v14M5 12h14"/></svg>
-        <div class="tname">Wkrótce</div>
+      <div class="tile" data-tile="flaszki">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 2l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-1.5L12 2z"/></svg>
+        <div class="tname">Flaszki</div>
+      </div>
+      <div class="tile" data-tile="tarul">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 2l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-1.5L12 2z"/></svg>
+        <div class="tname">Tarul</div>
+      </div>
+      <div class="tile" data-tile="sidraga">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 2l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-1.5L12 2z"/></svg>
+        <div class="tname">Sidraga</div>
       </div>
       <div class="tile placeholder">
         <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" style="opacity:.4"><path d="M12 5v14M5 12h14"/></svg>
@@ -583,6 +592,22 @@
       name: 'Odłamkowanie',
       desc: 'Tu pojawi się opis odłamkowania. Podmień ten tekst na właściwy, kiedy będziesz gotowy.',
       img: 'odlamkowanie.png',
+    },
+    flaszki: {
+      name: 'Flaszki',
+      desc: 'Tu pojawi się opis flaszek. Podmień ten tekst na właściwy, kiedy będziesz gotowy.',
+      img: 'flaszki.png',
+    },
+    tarul: {
+      name: 'Tarul',
+      desc: 'Tu pojawi się opis tarula. Podmień ten tekst na właściwy, kiedy będziesz gotowy.',
+      img: 'tarul.png',
+    },
+    sidraga: {
+      name: 'Sidraga',
+      desc: 'Tu pojawi się opis sidragi. Podmień ten tekst na właściwy, kiedy będziesz gotowy.',
+      // sidraga ma dwie grafiki - obie wyświetlą się razem po kliknięciu kafelka
+      img: ['sidraga_1.png', 'sidraga_2.png'],
     }
   };
 
@@ -598,16 +623,21 @@
       const frame = document.getElementById('tileImgFrame');
       frame.classList.remove('icon-only');
       frame.innerHTML = '';
-      const img = document.createElement('img');
-      img.src = data.img;
-      img.alt = data.name;
-      img.onerror = () => {
-        // gdyby ścieżka do pliku była zła, pokaż podpowiedź zamiast pustej ramki
-        frame.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-faint);font-size:0.8rem;">
-          Nie znaleziono pliku "${data.img}". Sprawdź, czy grafika leży w tym samym folderze co index.html.
-        </div>`;
-      };
-      frame.appendChild(img);
+      // data.img może być pojedynczym plikiem (string) albo listą kilku plików (array) -
+      // wtedy wszystkie wyświetlają się obok siebie w tej samej ramce.
+      const files = Array.isArray(data.img) ? data.img : [data.img];
+      files.forEach(file => {
+        const img = document.createElement('img');
+        img.src = file;
+        img.alt = data.name;
+        img.onerror = () => {
+          const warn = document.createElement('div');
+          warn.style.cssText = 'padding:24px;text-align:center;color:var(--text-faint);font-size:0.8rem;';
+          warn.textContent = `Nie znaleziono pliku "${file}". Sprawdź, czy grafika leży w tym samym folderze co index.html.`;
+          img.replaceWith(warn);
+        };
+        frame.appendChild(img);
+      });
 
       document.getElementById('tileDetail').classList.add('show');
       document.getElementById('tileDetail').scrollIntoView({ behavior:'smooth', block:'nearest' });
