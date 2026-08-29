@@ -231,14 +231,6 @@
   }
   .leftover b{ color: var(--text); }
 
-  .alt-note{ margin-top: 22px; font-size: 0.82rem; color: var(--text-faint); }
-  .alt-note button{
-    background:none; border:none; color: var(--vii); cursor:pointer;
-    font-family:'IBM Plex Mono',monospace; font-size: 0.82rem; text-decoration: underline; padding:0;
-  }
-  #altList{ margin-top: 12px; display:flex; flex-direction:column; gap:8px; }
-  #altList .alt-row{ font-size: 0.8rem; color: var(--text-dim); background: var(--bg-2); border:1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; }
-
   /* ---------- encyclopedia ---------- */
   .tile-grid{
     display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
@@ -306,7 +298,7 @@
   <div class="wrap">
     <div class="eyebrow">Narzędzie gildii</div>
     <h2 class="section-title">Kalkulator Sarkofagów</h2>
-    <p class="section-desc">Wsyp ilość run do dzbanów poniżej, a nasz karczemny rachmistrz przeliczy wszystkie 64 możliwe kombinacje zestawów i powie, ile sarkofagów da się dziś sforsować oraz w jakiej kolejności ruszać do roboty.</p>
+    <p class="section-desc">Wsyp ilość run do dzbanów poniżej, a nasz karczemny rachmistrz policzy, ile sarkofagów łącznie da się dziś otworzyć (każdy dowolną liczbę razy) oraz w jakiej kolejności do nich podchodzić.</p>
 
     <div class="rune-grid">
       <div class="rune-card eov">
@@ -352,24 +344,19 @@
     </div>
 
     <div class="calc-actions">
-      <button class="btn primary" id="calcBtn">Przelicz łup</button>
-      <button class="btn ghost" id="resetBtn">Wylej beczkę</button>
+      <button class="btn primary" id="calcBtn">Przelicz zestawy</button>
+      <button class="btn ghost" id="resetBtn">Wyzeruj</button>
     </div>
 
     <div class="results hidden" id="results">
       <div class="result-summary">
         <span class="count" id="resCount">0</span>
-        <span class="label">z 6 sarkofagów możliwych do otwarcia</span>
+        <span class="label" id="resCountLabel">sarkofagów możliwych do otwarcia</span>
       </div>
 
       <ol class="order-list" id="orderList"></ol>
 
       <div class="leftover" id="leftover"></div>
-
-      <div class="alt-note" id="altNote" style="display:none;">
-        <button id="altToggle">Pokaż inne równie chytre kombinacje</button>
-        <div id="altList"></div>
-      </div>
     </div>
   </div>
 </section>
@@ -426,50 +413,99 @@
     });
   });
 
-  // ---------- sarcophagus data (Esencja pominięta - stała 10, nie ogranicza wyboru) ----------
+  // ---------- dane sarkofagów (Esencja pominięta, stała 10, nie ogranicza wyboru) ----------
   const SETS = [
-    { id: 1, name: 'Zestaw I',   req: { eov:0, nov:0, vii:2, voe:2 } },
-    { id: 2, name: 'Zestaw II',  req: { eov:2, nov:2, vii:0, voe:0 } },
-    { id: 3, name: 'Zestaw III', req: { eov:1, nov:0, vii:1, voe:2 } },
-    { id: 4, name: 'Zestaw IV',  req: { eov:1, nov:2, vii:1, voe:0 } },
-    { id: 5, name: 'Zestaw V',   req: { eov:0, nov:1, vii:2, voe:1 } },
-    { id: 6, name: 'Zestaw VI',  req: { eov:2, nov:1, vii:0, voe:1 } },
+    { id: 1, name: 'Sarkofag 1', req: { eov:0, nov:0, vii:2, voe:2 } },
+    { id: 2, name: 'Sarkofag 2', req: { eov:2, nov:2, vii:0, voe:0 } },
+    { id: 3, name: 'Sarkofag 3', req: { eov:1, nov:0, vii:1, voe:2 } },
+    { id: 4, name: 'Sarkofag 4', req: { eov:1, nov:2, vii:1, voe:0 } },
+    { id: 5, name: 'Sarkofag 5', req: { eov:0, nov:1, vii:2, voe:1 } },
+    { id: 6, name: 'Sarkofag 6', req: { eov:2, nov:1, vii:0, voe:1 } },
   ];
   const KEYS = ['eov','nov','vii','voe'];
 
-  function computeBest(owned){
-    let bestCount = -1;
-    let combos = [];
-    for(let mask = 1; mask < 64; mask++){
-      const chosen = [];
-      const need = { eov:0, nov:0, vii:0, voe:0 };
-      for(let i=0;i<6;i++){
-        if(mask & (1<<i)){
-          chosen.push(SETS[i]);
-          KEYS.forEach(k => need[k] += SETS[i].req[k]);
+  // Sarkofagi można otwierać wielokrotnie (bez limitu 6 sztuk) - to jest
+  // wielowymiarowy plecakowy z nieograniczoną liczbą powtórzeń każdego przedmiotu.
+  // Dla rozsądnych ilości liczymy dokładnie (DP), dla bardzo dużych zapasów
+  // (setki run) używamy zachłannego doboru + dokładnej dopłaty na resztkach,
+  // żeby strona nie zawiesiła przeglądarki.
+
+  function exactSolve(owned){
+    const dims = KEYS.map(k => owned[k]);
+    const [dE, dN, dV, dO] = dims.map(d => d + 1);
+    const total = dE * dN * dV * dO;
+    const dp = new Int32Array(total);
+    const choice = new Int8Array(total);
+    const idx = (e,n,v,o) => ((e*dN+n)*dV+v)*dO+o;
+
+    for(let e=0; e<dE; e++){
+      for(let n=0; n<dN; n++){
+        for(let v=0; v<dV; v++){
+          for(let o=0; o<dO; o++){
+            let best = 0, bestChoice = -5;
+            if(e>0){ const val = dp[idx(e-1,n,v,o)]; if(val>best){ best=val; bestChoice=-1; } }
+            if(n>0){ const val = dp[idx(e,n-1,v,o)]; if(val>best){ best=val; bestChoice=-2; } }
+            if(v>0){ const val = dp[idx(e,n,v-1,o)]; if(val>best){ best=val; bestChoice=-3; } }
+            if(o>0){ const val = dp[idx(e,n,v,o-1)]; if(val>best){ best=val; bestChoice=-4; } }
+            for(let s=0; s<6; s++){
+              const r = SETS[s].req;
+              if(r.eov<=e && r.nov<=n && r.vii<=v && r.voe<=o){
+                const val = dp[idx(e-r.eov, n-r.nov, v-r.vii, o-r.voe)] + 1;
+                if(val > best){ best = val; bestChoice = s; }
+              }
+            }
+            const i = idx(e,n,v,o);
+            dp[i] = best;
+            choice[i] = bestChoice;
+          }
         }
       }
-      const feasible = KEYS.every(k => need[k] <= owned[k]);
-      if(!feasible) continue;
-      const count = chosen.length;
-      if(count > bestCount){
-        bestCount = count;
-        combos = [{ chosen, need }];
-      } else if(count === bestCount){
-        combos.push({ chosen, need });
-      }
     }
-    return { bestCount: Math.max(bestCount, 0), combos };
+
+    let [e,n,v,o] = dims;
+    const seq = [];
+    while(e>0 || n>0 || v>0 || o>0){
+      const c = choice[idx(e,n,v,o)];
+      if(c === -1) e--;
+      else if(c === -2) n--;
+      else if(c === -3) v--;
+      else if(c === -4) o--;
+      else if(c >= 0){
+        seq.push(c);
+        const r = SETS[c].req;
+        e -= r.eov; n -= r.nov; v -= r.vii; o -= r.voe;
+      } else break;
+    }
+    return { count: dp[idx(...dims)], sequence: seq };
   }
 
-  function leftoverOf(owned, need){
-    const l = {};
-    KEYS.forEach(k => l[k] = owned[k] - need[k]);
-    return l;
+  function computeBest(owned){
+    const size = KEYS.reduce((acc,k) => acc * (owned[k] + 1), 1);
+    if(size <= 3000000){
+      return { ...exactSolve(owned), approx: false };
+    }
+    // zbyt duży zapas na dokładne przeliczenie w przeglądarce: zachłanne
+    // dobieranie najbardziej "dopasowanych" sarkofagów, a resztki (zawsze
+    // już małe) dopełniamy dokładnym przeliczeniem
+    const remaining = { ...owned };
+    const seq = [];
+    while(true){
+      let bestIdx = -1, bestScore = Infinity;
+      for(let s=0; s<6; s++){
+        const r = SETS[s].req;
+        if(r.eov>remaining.eov || r.nov>remaining.nov || r.vii>remaining.vii || r.voe>remaining.voe) continue;
+        let score = 0;
+        KEYS.forEach(k => { if(r[k]>0) score = Math.max(score, r[k] / Math.max(remaining[k],1)); });
+        if(score < bestScore){ bestScore = score; bestIdx = s; }
+      }
+      if(bestIdx === -1) break;
+      seq.push(bestIdx);
+      const r = SETS[bestIdx].req;
+      KEYS.forEach(k => remaining[k] -= r[k]);
+    }
+    const rest = exactSolve(remaining);
+    return { count: seq.length + rest.count, sequence: seq.concat(rest.sequence), approx: true };
   }
-
-  function sumVals(obj){ return KEYS.reduce((s,k)=> s+obj[k], 0); }
-
   function renderReqs(req){
     const labelMap = { eov:'Eov', nov:'Nov', vii:'Vii', voe:'Voe' };
     return KEYS.filter(k=>req[k]>0).map(k =>
@@ -477,82 +513,53 @@
     ).join('');
   }
 
-  let currentAlts = [];
-
   document.getElementById('calcBtn').addEventListener('click', () => {
     const owned = {};
     KEYS.forEach(k => owned[k] = Math.max(0, parseInt(document.getElementById(k).value) || 0));
 
-    const { bestCount, combos } = computeBest(owned);
+    const result = computeBest(owned);
     const resultsEl = document.getElementById('results');
     const countEl = document.getElementById('resCount');
+    const countLabel = document.getElementById('resCountLabel');
     const orderList = document.getElementById('orderList');
     const leftoverEl = document.getElementById('leftover');
-    const altNote = document.getElementById('altNote');
-    const altList = document.getElementById('altList');
 
     resultsEl.classList.remove('hidden');
-    countEl.textContent = bestCount;
-    countEl.classList.toggle('zero', bestCount === 0);
+    countEl.textContent = result.count;
+    countEl.classList.toggle('zero', result.count === 0);
+    countLabel.textContent = result.count === 1 ? 'sarkofag możliwy do otwarcia' : 'sarkofagów możliwych do otwarcia';
     orderList.innerHTML = '';
-    altList.innerHTML = '';
-    altNote.style.display = 'none';
-    currentAlts = [];
 
-    if(bestCount === 0){
-      leftoverEl.innerHTML = 'Ani jeden sarkofag nie drgnie przy takim zapasie run. Dorzuć coś do beczki i spróbuj jeszcze raz.';
+    if(result.count === 0){
+      leftoverEl.innerHTML = 'Żaden sarkofag nie da się otworzyć przy takim zapasie run. Wpisz więcej i przelicz ponownie.';
       return;
     }
 
-    // recommended = combo with smallest total leftover (najbardziej efektywna)
-    let recommended = combos[0];
-    let bestLeftoverSum = Infinity;
-    combos.forEach(c => {
-      const lo = leftoverOf(owned, c.need);
-      const s = sumVals(lo);
-      if(s < bestLeftoverSum){ bestLeftoverSum = s; recommended = c; }
-    });
+    // sortujemy rosnąco po numerze sarkofaga, więc powtórzenia tego samego
+    // sarkofaga widać jako kolejne wpisy pod rząd (np. Sarkofag 1, Sarkofag 1, Sarkofag 3...)
+    const sorted = [...result.sequence].sort((a,b) => a - b);
+    const need = { eov:0, nov:0, vii:0, voe:0 };
 
-    // suggested click order: least resource-hungry sets first
-    const ordered = [...recommended.chosen].sort((a,b) => sumVals(a.req) - sumVals(b.req));
-
-    ordered.forEach((s, idx) => {
+    sorted.forEach((setIdx, i) => {
+      const s = SETS[setIdx];
+      KEYS.forEach(k => need[k] += s.req[k]);
       const li = document.createElement('li');
       li.className = 'order-item';
       li.innerHTML = `
-        <span class="num">${idx+1}</span>
+        <span class="num">${i+1}</span>
         <span class="name">${s.name}</span>
         <span class="reqs">${renderReqs(s.req)}</span>
       `;
       orderList.appendChild(li);
     });
 
-    const lo = leftoverOf(owned, recommended.need);
     const labelMap = { eov:'Eov', nov:'Nov', vii:'Vii', voe:'Voe' };
-    leftoverEl.innerHTML = 'W beczce zostanie: ' +
-      KEYS.map(k => `<b>${lo[k]}× ${labelMap[k]}</b>`).join(', ') +
-      '. Kolejność podajemy od zestawów najlżejszych dla Twojej sakiewki z runami, choć finalne zużycie jest identyczne bez względu na to, od czego zaczniesz.';
-
-    // alternatives with same max count
-    const others = combos.filter(c => c !== recommended);
-    if(others.length > 0){
-      altNote.style.display = 'block';
-      currentAlts = others;
+    let text = 'Po tej serii zostanie: ' +
+      KEYS.map(k => `<b>${owned[k]-need[k]}× ${labelMap[k]}</b>`).join(', ') + '.';
+    if(result.approx){
+      text += ' Przy tak dużym zapasie run policzyliśmy to metodą zachłanną, bo dokładne przeliczenie zawiesiłoby przeglądarkę. Wynik jest bardzo bliski optymalnemu, ale przy ogromnych ilościach może odbiegać o pojedyncze sztuki.';
     }
-  });
-
-  document.getElementById('altToggle').addEventListener('click', () => {
-    const altList = document.getElementById('altList');
-    if(altList.childElementCount > 0){
-      altList.innerHTML = '';
-      return;
-    }
-    currentAlts.forEach(c => {
-      const row = document.createElement('div');
-      row.className = 'alt-row';
-      row.textContent = c.chosen.map(s => s.name).join(' + ');
-      altList.appendChild(row);
-    });
+    leftoverEl.innerHTML = text;
   });
 
   document.getElementById('resetBtn').addEventListener('click', () => {
