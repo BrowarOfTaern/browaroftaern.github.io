@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BrowarOfTaern: Gildia Broken Ranks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #120e0b;
+    --bg-2: #1c1712;
+    --bg-3: #241d16;
+    --stone: #2b241c;
+    --border: #3a2f22;
+    --border-lit: #55432b;
+    --text: #e9dfc9;
+    --text-dim: #a99a7f;
+    --text-faint: #6f6250;
+
+    --eov: #d4a72c;
+    --eov-dim: #6b5620;
+    --nov: #eef0ea;
+    --nov-dim: #7a7a72;
+    --vii: #5fc2d6;
+    --vii-dim: #2c5d68;
+    --voe: #c9432f;
+    --voe-dim: #632119;
+
+    --ok: #7fae4e;
+    --radius: 6px;
+  }
+
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+
+  body{
+    margin:0;
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 20% -10%, rgba(212,167,44,0.07), transparent 45%),
+      radial-gradient(ellipse at 90% 10%, rgba(95,194,214,0.05), transparent 40%);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,h2,h3, .display{
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--nov);
+    margin: 0;
+  }
+
+  a{ color: var(--vii); }
+
+  :focus-visible{
+    outline: 2px solid var(--vii);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* ---------- layout shell ---------- */
+  .wrap{ max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header.nav{
+    position: sticky; top:0; z-index: 20;
+    background: rgba(18,14,11,0.88);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner{
+    max-width: 1080px; margin: 0 auto; padding: 14px 24px;
+    display:flex; align-items:center; justify-content: space-between;
+  }
+  .brand{
+    font-family:'Cinzel Decorative', serif;
+    font-size: 1.05rem;
+    color: var(--eov);
+    display:flex; align-items:center; gap:10px;
+  }
+  .brand svg{ width:26px; height:26px; }
+  .navlinks{ display:flex; gap:22px; font-size: 0.82rem; }
+  .navlinks a{ color: var(--text-dim); text-decoration:none; text-transform: uppercase; letter-spacing: 0.08em; }
+  .navlinks a:hover{ color: var(--eov); }
+
+  /* ---------- hero ---------- */
+  .hero{
+    padding: 84px 0 64px;
+    text-align:center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image: repeating-linear-gradient(115deg, rgba(255,255,255,0.015) 0 2px, transparent 2px 60px);
+    pointer-events:none;
+  }
+  .hero .crest{ width: 74px; height: 74px; margin: 0 auto 22px; }
+  .hero h1{
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(2.4rem, 6vw, 4.2rem);
+    color: var(--eov);
+    text-shadow: 0 2px 0 #000, 0 0 40px rgba(212,167,44,0.18);
+  }
+  .hero .sub{
+    margin-top: 14px;
+    color: var(--text-dim);
+    font-size: clamp(0.95rem, 2vw, 1.1rem);
+    max-width: 46ch;
+    margin-left:auto; margin-right:auto;
+  }
+  .hero .rule{
+    width: 120px; height: 1px; margin: 26px auto 0;
+    background: linear-gradient(90deg, transparent, var(--border-lit), transparent);
+  }
+
+  section{ padding: 68px 0; border-bottom: 1px solid var(--border); }
+  .eyebrow{
+    font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--text-faint); margin-bottom: 8px;
+  }
+  .section-title{ font-size: clamp(1.5rem, 3vw, 2rem); margin-bottom: 10px; }
+  .section-desc{ color: var(--text-dim); max-width: 62ch; font-size: 0.95rem; margin-bottom: 40px; }
+
+  /* ---------- rune input tiles ---------- */
+  .rune-grid{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 34px;
+  }
+  @media (max-width: 720px){ .rune-grid{ grid-template-columns: repeat(2, 1fr); } }
+
+  .rune-card{
+    background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 14px;
+    text-align:center;
+    position: relative;
+  }
+  .rune-card .icon{
+    width: 46px; height:46px; margin: 0 auto 10px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius: 5px;
+    background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.06), transparent 70%);
+    border: 1px solid var(--border-lit);
+  }
+  .rune-card .icon svg{ width: 26px; height: 26px; }
+  .rune-card .label{ font-family:'Cinzel',serif; font-weight:700; font-size: 0.95rem; margin-bottom: 2px; }
+  .rune-card .hint{ font-size: 0.68rem; color: var(--text-faint); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .stepper{ display:flex; align-items:center; justify-content:center; gap:6px; }
+  .stepper button{
+    width: 28px; height: 28px;
+    background: var(--stone); border: 1px solid var(--border-lit);
+    color: var(--text); border-radius: 4px; cursor:pointer;
+    font-family: 'IBM Plex Mono', monospace; font-size: 1rem; line-height:1;
+  }
+  .stepper button:hover{ border-color: var(--eov); color: var(--eov); }
+  .stepper input{
+    width: 52px; text-align:center;
+    background: var(--bg); border: 1px solid var(--border-lit);
+    color: var(--text); border-radius: 4px; padding: 6px 4px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.95rem;
+  }
+  .rune-card.eov .icon{ color: var(--eov); }
+  .rune-card.nov .icon{ color: var(--nov); }
+  .rune-card.vii .icon{ color: var(--vii); }
+  .rune-card.voe .icon{ color: var(--voe); }
+
+  .calc-actions{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 8px; }
+  .btn{
+    font-family: 'Cinzel', serif; font-weight:700; letter-spacing:0.04em;
+    padding: 12px 26px; border-radius: var(--radius);
+    border: 1px solid var(--border-lit); cursor:pointer;
+    background: var(--stone); color: var(--text);
+    font-size: 0.9rem;
+  }
+  .btn.primary{
+    background: linear-gradient(180deg, #e2b53a, #b8871f);
+    color: #1a1409; border-color: #8a6a1a;
+  }
+  .btn.primary:hover{ filter: brightness(1.08); }
+  .btn.ghost:hover{ border-color: var(--vii); color: var(--vii); }
+
+  /* ---------- results ---------- */
+  .results{ margin-top: 40px; }
+  .results.hidden{ display:none; }
+
+  .result-summary{
+    display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+    padding: 18px 20px; border: 1px solid var(--border-lit); border-radius: var(--radius);
+    background: var(--bg-3); margin-bottom: 22px;
+  }
+  .result-summary .count{
+    font-family:'Cinzel Decorative', serif; font-size: 2rem; color: var(--ok);
+  }
+  .result-summary .count.zero{ color: var(--voe); }
+  .result-summary .label{ color: var(--text-dim); font-size: 0.85rem; }
+
+  .order-list{ list-style:none; margin:0 0 28px; padding:0; display:flex; flex-direction:column; gap:10px; }
+  .order-item{
+    display:flex; align-items:center; gap:16px;
+    background: var(--bg-2); border:1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 16px;
+  }
+  .order-item .num{
+    font-family:'Cinzel Decorative', serif; font-size:1.1rem; color: var(--eov);
+    width: 28px; text-align:center; flex-shrink:0;
+  }
+  .order-item .name{ font-family:'Cinzel', serif; font-weight:700; min-width: 92px; }
+  .order-item .reqs{ display:flex; gap:10px; flex-wrap:wrap; font-size:0.8rem; color: var(--text-dim); }
+  .order-item .reqs span{ display:inline-flex; align-items:center; gap:4px; }
+  .swatch{ width:9px; height:9px; border-radius:2px; display:inline-block; }
+  .swatch.eov{ background: var(--eov); } .swatch.nov{ background: var(--nov); }
+  .swatch.vii{ background: var(--vii); } .swatch.voe{ background: var(--voe); }
+
+  .leftover{
+    font-size: 0.85rem; color: var(--text-dim);
+    border-top: 1px dashed var(--border-lit); padding-top: 16px;
+  }
+  .leftover b{ color: var(--text); }
+
+  .alt-note{ margin-top: 22px; font-size: 0.82rem; color: var(--text-faint); }
+  .alt-note button{
+    background:none; border:none; color: var(--vii); cursor:pointer;
+    font-family:'IBM Plex Mono',monospace; font-size: 0.82rem; text-decoration: underline; padding:0;
+  }
+  #altList{ margin-top: 12px; display:flex; flex-direction:column; gap:8px; }
+  #altList .alt-row{ font-size: 0.8rem; color: var(--text-dim); background: var(--bg-2); border:1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; }
+
+  /* ---------- encyclopedia ---------- */
+  .tile-grid{
+    display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  }
+  @media (max-width: 780px){ .tile-grid{ grid-template-columns: repeat(2, 1fr); } }
+
+  .tile{
+    aspect-ratio: 1; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--bg-3);
+    cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap: 10px; position:relative; transition: border-color .15s, transform .15s;
+  }
+  .tile:hover{ border-color: var(--eov); transform: translateY(-2px); }
+  .tile.active{ border-color: var(--eov); box-shadow: 0 0 0 1px var(--eov); }
+  .tile .glyph{ width: 40px; height:40px; color: var(--eov); }
+  .tile .tname{ font-family:'Cinzel',serif; font-size: 0.8rem; text-align:center; padding: 0 8px; }
+  .tile.placeholder{ opacity:0.5; border-style:dashed; cursor:default; }
+  .tile.placeholder:hover{ transform:none; border-color: var(--border); }
+
+  .tile-detail{
+    margin-top: 26px; border: 1px solid var(--border-lit); border-radius: var(--radius);
+    background: var(--bg-2); padding: 26px; display:none;
+  }
+  .tile-detail.show{ display:flex; gap:24px; flex-wrap:wrap; }
+  .tile-detail .img-frame{
+    width: 160px; height: 160px; flex-shrink:0;
+    border: 1px solid var(--border-lit); border-radius: var(--radius);
+    display:flex; align-items:center; justify-content:center;
+    background: radial-gradient(circle, rgba(212,167,44,0.08), transparent 70%);
+  }
+  .tile-detail .img-frame svg{ width: 84px; height:84px; color: var(--eov); }
+  .tile-detail .info h3{ margin-bottom: 8px; }
+  .tile-detail .info p{ color: var(--text-dim); font-size: 0.9rem; max-width: 52ch; }
+
+  footer{ padding: 32px 0; text-align:center; color: var(--text-faint); font-size: 0.78rem; }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3C6 3 5 6 5 12C5 18 6 21 8 21H16C18 21 19 18 19 12C19 6 18 3 16 3Z"/><path d="M8 3C9.5 4.5 9.5 19.5 8 21M16 3C14.5 4.5 14.5 19.5 16 21"/><line x1="5.3" y1="8" x2="18.7" y2="8"/><line x1="5.3" y1="16" x2="18.7" y2="16"/></svg>
+      BrowarOfTaern
+    </div>
+    <nav class="navlinks">
+      <a href="#kalkulator">Kalkulator</a>
+      <a href="#encyklopedia">Encyklopedia</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <svg class="crest" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="color:var(--eov)">
+      <path d="M8 3C6 3 5 6 5 12C5 18 6 21 8 21H16C18 21 19 18 19 12C19 6 18 3 16 3Z"/><path d="M8 3C9.5 4.5 9.5 19.5 8 21M16 3C14.5 4.5 14.5 19.5 16 21"/><line x1="5.3" y1="8" x2="18.7" y2="8"/><line x1="5.3" y1="16" x2="18.7" y2="16"/>
+    </svg>
+    <h1>BrowarOfTaern</h1>
+    <p class="sub">Warzymy zwycięstwa w krainie Taern, jedną beczką na raz. Kalkulatory, encyklopedia i cała mądrość gildii czekają tu na Ciebie, żeby nikt nie musiał grzebać po omacku w piwnicy.</p>
+    <div class="rule"></div>
+  </div>
+</section>
+
+<section id="kalkulator">
+  <div class="wrap">
+    <div class="eyebrow">Narzędzie gildii</div>
+    <h2 class="section-title">Kalkulator Sarkofagów</h2>
+    <p class="section-desc">Wsyp ilość run do dzbanów poniżej, a nasz karczemny rachmistrz przeliczy wszystkie 64 możliwe kombinacje zestawów i powie, ile sarkofagów da się dziś sforsować oraz w jakiej kolejności ruszać do roboty.</p>
+
+    <div class="rune-grid">
+      <div class="rune-card eov">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l8 15H4L12 3z"/><path d="M12 9v5"/></svg></div>
+        <div class="label">Eov</div>
+        <div class="hint">Runa</div>
+        <div class="stepper">
+          <button type="button" data-dec="eov" aria-label="Zmniejsz Eov">−</button>
+          <input type="number" id="eov" min="0" value="0" inputmode="numeric">
+          <button type="button" data-inc="eov" aria-label="Zwiększ Eov">+</button>
+        </div>
+      </div>
+      <div class="rune-card nov">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18M12 3l-5 5M12 3l5 5"/></svg></div>
+        <div class="label">Nov</div>
+        <div class="hint">Runa</div>
+        <div class="stepper">
+          <button type="button" data-dec="nov" aria-label="Zmniejsz Nov">−</button>
+          <input type="number" id="nov" min="0" value="0" inputmode="numeric">
+          <button type="button" data-inc="nov" aria-label="Zwiększ Nov">+</button>
+        </div>
+      </div>
+      <div class="rune-card vii">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v13M8 6l4-3 4 3M6 12c0 4 3 6 6 6s6-2 6-6"/></svg></div>
+        <div class="label">Vii</div>
+        <div class="hint">Runa</div>
+        <div class="stepper">
+          <button type="button" data-dec="vii" aria-label="Zmniejsz Vii">−</button>
+          <input type="number" id="vii" min="0" value="0" inputmode="numeric">
+          <button type="button" data-inc="vii" aria-label="Zwiększ Vii">+</button>
+        </div>
+      </div>
+      <div class="rune-card voe">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 12m-2 0a2 2 0 104 0 2 2 0 10-4 0"/><path d="M12 3c5 0 9 4 9 9M12 21c-5 0-9-4-9-9"/></svg></div>
+        <div class="label">Voe</div>
+        <div class="hint">Runa</div>
+        <div class="stepper">
+          <button type="button" data-dec="voe" aria-label="Zmniejsz Voe">−</button>
+          <input type="number" id="voe" min="0" value="0" inputmode="numeric">
+          <button type="button" data-inc="voe" aria-label="Zwiększ Voe">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="calc-actions">
+      <button class="btn primary" id="calcBtn">Przelicz łup</button>
+      <button class="btn ghost" id="resetBtn">Wylej beczkę</button>
+    </div>
+
+    <div class="results hidden" id="results">
+      <div class="result-summary">
+        <span class="count" id="resCount">0</span>
+        <span class="label">z 6 sarkofagów możliwych do otwarcia</span>
+      </div>
+
+      <ol class="order-list" id="orderList"></ol>
+
+      <div class="leftover" id="leftover"></div>
+
+      <div class="alt-note" id="altNote" style="display:none;">
+        <button id="altToggle">Pokaż inne równie chytre kombinacje</button>
+        <div id="altList"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="encyklopedia">
+  <div class="wrap">
+    <div class="eyebrow">Wiedza gildii</div>
+    <h2 class="section-title">Encyklopedia</h2>
+    <p class="section-desc">Stuknij w kafelek, a wyskoczy grafika i opis niczym stara karta z księgi gildii. Nowe pozycje dorzucamy w miarę, jak ktoś wygrzebie je z lochu.</p>
+
+    <div class="tile-grid" id="tileGrid">
+      <div class="tile" data-tile="inkrustacja">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 2l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-1.5L12 2z"/></svg>
+        <div class="tname">Inkrustacja</div>
+      </div>
+      <div class="tile placeholder">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" style="opacity:.4"><path d="M12 5v14M5 12h14"/></svg>
+        <div class="tname">Wkrótce</div>
+      </div>
+      <div class="tile placeholder">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" style="opacity:.4"><path d="M12 5v14M5 12h14"/></svg>
+        <div class="tname">Wkrótce</div>
+      </div>
+      <div class="tile placeholder">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" style="opacity:.4"><path d="M12 5v14M5 12h14"/></svg>
+        <div class="tname">Wkrótce</div>
+      </div>
+    </div>
+
+    <div class="tile-detail" id="tileDetail">
+      <div class="img-frame" id="tileImgFrame"></div>
+      <div class="info">
+        <h3 id="tileName"></h3>
+        <p id="tileDesc"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>BrowarOfTaern, gildia Broken Ranks warzona ze smakiem</footer>
+
+<script>
+  // ---------- rune steppers ----------
+  document.querySelectorAll('[data-inc]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const inp = document.getElementById(b.dataset.inc);
+      inp.value = Math.max(0, (parseInt(inp.value)||0) + 1);
+    });
+  });
+  document.querySelectorAll('[data-dec]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const inp = document.getElementById(b.dataset.dec);
+      inp.value = Math.max(0, (parseInt(inp.value)||0) - 1);
+    });
+  });
+
+  // ---------- sarcophagus data (Esencja pominięta - stała 10, nie ogranicza wyboru) ----------
+  const SETS = [
+    { id: 1, name: 'Zestaw I',   req: { eov:0, nov:0, vii:2, voe:2 } },
+    { id: 2, name: 'Zestaw II',  req: { eov:2, nov:2, vii:0, voe:0 } },
+    { id: 3, name: 'Zestaw III', req: { eov:1, nov:0, vii:1, voe:2 } },
+    { id: 4, name: 'Zestaw IV',  req: { eov:1, nov:2, vii:1, voe:0 } },
+    { id: 5, name: 'Zestaw V',   req: { eov:0, nov:1, vii:2, voe:1 } },
+    { id: 6, name: 'Zestaw VI',  req: { eov:2, nov:1, vii:0, voe:1 } },
+  ];
+  const KEYS = ['eov','nov','vii','voe'];
+
+  function computeBest(owned){
+    let bestCount = -1;
+    let combos = [];
+    for(let mask = 1; mask < 64; mask++){
+      const chosen = [];
+      const need = { eov:0, nov:0, vii:0, voe:0 };
+      for(let i=0;i<6;i++){
+        if(mask & (1<<i)){
+          chosen.push(SETS[i]);
+          KEYS.forEach(k => need[k] += SETS[i].req[k]);
+        }
+      }
+      const feasible = KEYS.every(k => need[k] <= owned[k]);
+      if(!feasible) continue;
+      const count = chosen.length;
+      if(count > bestCount){
+        bestCount = count;
+        combos = [{ chosen, need }];
+      } else if(count === bestCount){
+        combos.push({ chosen, need });
+      }
+    }
+    return { bestCount: Math.max(bestCount, 0), combos };
+  }
+
+  function leftoverOf(owned, need){
+    const l = {};
+    KEYS.forEach(k => l[k] = owned[k] - need[k]);
+    return l;
+  }
+
+  function sumVals(obj){ return KEYS.reduce((s,k)=> s+obj[k], 0); }
+
+  function renderReqs(req){
+    const labelMap = { eov:'Eov', nov:'Nov', vii:'Vii', voe:'Voe' };
+    return KEYS.filter(k=>req[k]>0).map(k =>
+      `<span><span class="swatch ${k}"></span>${req[k]}× ${labelMap[k]}</span>`
+    ).join('');
+  }
+
+  let currentAlts = [];
+
+  document.getElementById('calcBtn').addEventListener('click', () => {
+    const owned = {};
+    KEYS.forEach(k => owned[k] = Math.max(0, parseInt(document.getElementById(k).value) || 0));
+
+    const { bestCount, combos } = computeBest(owned);
+    const resultsEl = document.getElementById('results');
+    const countEl = document.getElementById('resCount');
+    const orderList = document.getElementById('orderList');
+    const leftoverEl = document.getElementById('leftover');
+    const altNote = document.getElementById('altNote');
+    const altList = document.getElementById('altList');
+
+    resultsEl.classList.remove('hidden');
+    countEl.textContent = bestCount;
+    countEl.classList.toggle('zero', bestCount === 0);
+    orderList.innerHTML = '';
+    altList.innerHTML = '';
+    altNote.style.display = 'none';
+    currentAlts = [];
+
+    if(bestCount === 0){
+      leftoverEl.innerHTML = 'Ani jeden sarkofag nie drgnie przy takim zapasie run. Dorzuć coś do beczki i spróbuj jeszcze raz.';
+      return;
+    }
+
+    // recommended = combo with smallest total leftover (najbardziej efektywna)
+    let recommended = combos[0];
+    let bestLeftoverSum = Infinity;
+    combos.forEach(c => {
+      const lo = leftoverOf(owned, c.need);
+      const s = sumVals(lo);
+      if(s < bestLeftoverSum){ bestLeftoverSum = s; recommended = c; }
+    });
+
+    // suggested click order: least resource-hungry sets first
+    const ordered = [...recommended.chosen].sort((a,b) => sumVals(a.req) - sumVals(b.req));
+
+    ordered.forEach((s, idx) => {
+      const li = document.createElement('li');
+      li.className = 'order-item';
+      li.innerHTML = `
+        <span class="num">${idx+1}</span>
+        <span class="name">${s.name}</span>
+        <span class="reqs">${renderReqs(s.req)}</span>
+      `;
+      orderList.appendChild(li);
+    });
+
+    const lo = leftoverOf(owned, recommended.need);
+    const labelMap = { eov:'Eov', nov:'Nov', vii:'Vii', voe:'Voe' };
+    leftoverEl.innerHTML = 'W beczce zostanie: ' +
+      KEYS.map(k => `<b>${lo[k]}× ${labelMap[k]}</b>`).join(', ') +
+      '. Kolejność podajemy od zestawów najlżejszych dla Twojej sakiewki z runami, choć finalne zużycie jest identyczne bez względu na to, od czego zaczniesz.';
+
+    // alternatives with same max count
+    const others = combos.filter(c => c !== recommended);
+    if(others.length > 0){
+      altNote.style.display = 'block';
+      currentAlts = others;
+    }
+  });
+
+  document.getElementById('altToggle').addEventListener('click', () => {
+    const altList = document.getElementById('altList');
+    if(altList.childElementCount > 0){
+      altList.innerHTML = '';
+      return;
+    }
+    currentAlts.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'alt-row';
+      row.textContent = c.chosen.map(s => s.name).join(' + ');
+      altList.appendChild(row);
+    });
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    KEYS.forEach(k => document.getElementById(k).value = 0);
+    document.getElementById('results').classList.add('hidden');
+  });
+
+  // ---------- encyclopedia tiles ----------
+  // Dodawanie nowej pozycji: dopisz obiekt do TILE_DATA i kafelek w #tileGrid (data-tile musi się zgadzać).
+  const TILE_DATA = {
+    inkrustacja: {
+      name: 'Inkrustacja',
+      desc: 'Tu pojawi się opis inkrustacji. Wklej właściwy tekst i podmień poniższą ramkę na prawdziwe zdjęcie, kiedy je dorzucisz.',
+    }
+  };
+
+  document.querySelectorAll('.tile:not(.placeholder)').forEach(tile => {
+    tile.addEventListener('click', () => {
+      document.querySelectorAll('.tile').forEach(t => t.classList.remove('active'));
+      tile.classList.add('active');
+      const data = TILE_DATA[tile.dataset.tile];
+      if(!data) return;
+      document.getElementById('tileName').textContent = data.name;
+      document.getElementById('tileDesc').textContent = data.desc;
+      document.getElementById('tileImgFrame').innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 2l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-1.5L12 2z"/></svg>';
+      document.getElementById('tileDetail').classList.add('show');
+      document.getElementById('tileDetail').scrollIntoView({ behavior:'smooth', block:'nearest' });
+    });
+  });
+</script>
+
+</body>
+</html>
