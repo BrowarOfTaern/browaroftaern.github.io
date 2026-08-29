@@ -570,11 +570,17 @@
   // ---------- encyclopedia tiles ----------
   // Dodawanie nowej pozycji: dopisz obiekt do TILE_DATA i kafelek w #tileGrid (data-tile musi się zgadzać).
   const TILE_DATA = {
-    inkrustacja: {
-      name: 'Inkrustacja',
-      desc: 'Tu pojawi się opis inkrustacji. Wklej właściwy tekst i podmień poniższą ramkę na prawdziwe zdjęcie, kiedy je dorzucisz.',
-    }
-  };
+  inkrustacja: {
+    name: 'Inkrustacja',
+    desc: 'Tutaj opis inkrustacji.',
+    img: 'inkrustacja.png'
+  },
+  odlamkowanie: {
+    name: 'Odłamkowanie',
+    desc: 'Tutaj opis odłamkowania.',
+    img: 'odlamkowanie.png'
+  }
+};
 
   document.querySelectorAll('.tile:not(.placeholder)').forEach(tile => {
     tile.addEventListener('click', () => {
