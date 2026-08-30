@@ -209,12 +209,24 @@
   }
   .result-summary .count.zero{ color: var(--voe); }
   .result-summary .label{ color: var(--text-dim); font-size: 0.85rem; }
+  .result-summary .progress{
+    margin-left: auto; font-size: 0.8rem; color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .result-summary .progress b{ color: var(--eov); }
 
   .order-list{ list-style:none; margin:0 0 28px; padding:0; display:flex; flex-direction:column; gap:10px; }
   .order-item{
     display:flex; align-items:center; gap:16px;
     background: var(--bg-2); border:1px solid var(--border); border-radius: var(--radius);
     padding: 12px 16px;
+    transition: opacity .15s, background .15s;
+  }
+  .order-item.done{ opacity: 0.45; background: var(--bg); }
+  .order-item.done .name, .order-item.done .reqs{ text-decoration: line-through; text-decoration-color: var(--text-faint); }
+  .order-item .check{
+    flex-shrink:0; width: 20px; height: 20px; cursor: pointer;
+    accent-color: var(--eov); background: var(--stone);
   }
   .order-item .num{
     font-family:'Cinzel Decorative', serif; font-size:1.1rem; color: var(--eov);
@@ -295,6 +307,29 @@
   .tile-detail .img-hint{ font-size: 0.72rem; color: var(--text-faint); margin-top: -8px; }
 
   footer{ padding: 32px 0; text-align:center; color: var(--text-faint); font-size: 0.78rem; }
+
+  /* ---------- mini-gra: Beczka Runner ---------- */
+  .game-wrap{
+    position: relative;
+    border: 1px solid var(--border-lit); border-radius: var(--radius);
+    background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
+    overflow: hidden;
+  }
+  .game-hud{
+    display:flex; justify-content: space-between;
+    padding: 12px 16px; font-size: 0.82rem; color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  .game-hud b{ color: var(--eov); font-family: 'Cinzel', serif; }
+  #gameCanvas{ display:block; width: 100%; height: 220px; touch-action: manipulation; cursor: pointer; }
+  .game-overlay{
+    position:absolute; inset: 0; top: 45px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap: 10px;
+    background: rgba(18,14,11,0.82); text-align:center; padding: 20px;
+  }
+  .game-overlay.hidden{ display:none; }
+  .game-overlay-title{ font-family:'Cinzel Decorative', serif; font-size: 1.3rem; color: var(--eov); }
+  .game-overlay-sub{ font-size: 0.82rem; color: var(--text-dim); max-width: 34ch; }
 </style>
 </head>
 <body>
@@ -308,6 +343,7 @@
     <nav class="navlinks">
       <a href="#kalkulator">Kalkulator</a>
       <a href="#encyklopedia">Encyklopedia</a>
+      <a href="#gra">Gra</a>
     </nav>
   </div>
 </header>
@@ -381,6 +417,7 @@
       <div class="result-summary">
         <span class="count" id="resCount">0</span>
         <span class="label" id="resCountLabel">sarkofagów możliwych do otwarcia</span>
+        <span class="progress" id="resProgress"></span>
       </div>
 
       <ol class="order-list" id="orderList"></ol>
@@ -428,6 +465,27 @@
       <div class="info">
         <h3 id="tileName"></h3>
         <p id="tileDesc"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="gra">
+  <div class="wrap">
+    <div class="eyebrow">Dla zabicia czasu</div>
+    <h2 class="section-title">Beczka Runner</h2>
+    <p class="section-desc">Uciekająca beczka piwa musi przeskakiwać przez potłuczone flaszki. Spacja, strzałka w górę, albo stuknięcie w ekran — im dłużej przeżyjesz, tym więcej beczek naliczy karczmarz.</p>
+
+    <div class="game-wrap">
+      <div class="game-hud">
+        <span>Wynik: <b id="gameScore">0</b></span>
+        <span>Rekord (ta wizyta): <b id="gameBest">0</b></span>
+      </div>
+      <canvas id="gameCanvas"></canvas>
+      <div class="game-overlay" id="gameOverlay">
+        <div class="game-overlay-title" id="gameOverlayTitle">Beczka Runner</div>
+        <div class="game-overlay-sub" id="gameOverlaySub">Spacja / stuknięcie, żeby skoczyć nad flaszkami</div>
+        <button class="btn primary" id="gameStartBtn">Start</button>
       </div>
     </div>
   </div>
@@ -565,12 +623,14 @@
     const countLabel = document.getElementById('resCountLabel');
     const orderList = document.getElementById('orderList');
     const leftoverEl = document.getElementById('leftover');
+    const progressEl = document.getElementById('resProgress');
 
     resultsEl.classList.remove('hidden');
     countEl.textContent = result.count;
     countEl.classList.toggle('zero', result.count === 0);
     countLabel.textContent = result.count === 1 ? 'sarkofag możliwy do otwarcia' : 'sarkofagów możliwych do otwarcia';
     orderList.innerHTML = '';
+    progressEl.textContent = '';
 
     if(result.count === 0){
       leftoverEl.innerHTML = 'Żaden sarkofag nie da się otworzyć przy takim zapasie run. Wpisz więcej i przelicz ponownie.';
@@ -582,18 +642,31 @@
     const sorted = [...result.sequence].sort((a,b) => a - b);
     const need = { eov:0, nov:0, vii:0, voe:0 };
 
+    function updateProgress(){
+      const total = orderList.querySelectorAll('.order-item').length;
+      const done = orderList.querySelectorAll('.order-item.done').length;
+      progressEl.innerHTML = `otworzone: <b>${done}</b> / ${total}`;
+    }
+
     sorted.forEach((setIdx, i) => {
       const s = SETS[setIdx];
       KEYS.forEach(k => need[k] += s.req[k]);
       const li = document.createElement('li');
       li.className = 'order-item';
+      const checkId = `chk-${i}`;
       li.innerHTML = `
+        <input type="checkbox" class="check" id="${checkId}" aria-label="Otworzono ${s.name}">
         <span class="num">${i+1}</span>
         <span class="name">${s.name}</span>
         <span class="reqs">${renderReqs(s.req)}</span>
       `;
+      li.querySelector('.check').addEventListener('change', (e) => {
+        li.classList.toggle('done', e.target.checked);
+        updateProgress();
+      });
       orderList.appendChild(li);
     });
+    updateProgress();
 
     const labelMap = { eov:'Eov', nov:'Nov', vii:'Vii', voe:'Voe' };
     let text = 'Po tej serii zostanie: ' +
@@ -696,6 +769,207 @@
   document.addEventListener('keydown', (e) => {
     if(e.key === 'Escape') closeLightbox();
   });
+
+  // ---------- mini-gra: Beczka Runner ----------
+  (function(){
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('gameOverlay');
+    const overlayTitle = document.getElementById('gameOverlayTitle');
+    const overlaySub = document.getElementById('gameOverlaySub');
+    const startBtn = document.getElementById('gameStartBtn');
+    const scoreEl = document.getElementById('gameScore');
+    const bestEl = document.getElementById('gameBest');
+    const gameSection = document.getElementById('gra');
+
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    let cw = 0, ch = 0, groundY = 0;
+    let state = 'idle'; // idle | running | over
+    let best = 0;
+
+    const GRAVITY = 0.0028;
+    const JUMP_V = -0.75;
+    const player = { x: 46, y: 0, w: 34, h: 34, vy: 0, onGround: true };
+    let obstacles = [];
+    let speed = 0.28;
+    let spawnTimer = 0;
+    let nextSpawnIn = 1200;
+    let elapsed = 0;
+    let score = 0;
+    let lastTs = null;
+
+    function roundRect(x,y,w,h,r){
+      ctx.beginPath();
+      ctx.moveTo(x+r,y);
+      ctx.arcTo(x+w,y,x+w,y+h,r);
+      ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r);
+      ctx.arcTo(x,y,x+w,y,r);
+      ctx.closePath();
+    }
+
+    function drawBarrel(x,y,w,h){
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.fillStyle = '#e2b53a';
+      ctx.strokeStyle = '#8a6a1a';
+      ctx.lineWidth = 2;
+      roundRect(0,0,w,h,8);
+      ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(26,20,9,0.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0,h*0.32); ctx.lineTo(w,h*0.32); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,h*0.68); ctx.lineTo(w,h*0.68); ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawBottle(x,y,w,h){
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.fillStyle = '#5fc2d6';
+      ctx.strokeStyle = '#2c5d68';
+      ctx.lineWidth = 1.5;
+      roundRect(0, h*0.25, w, h*0.75, 3);
+      ctx.fill(); ctx.stroke();
+      ctx.fillRect(w*0.3, 0, w*0.4, h*0.3);
+      ctx.strokeRect(w*0.3, 0, w*0.4, h*0.3);
+      ctx.restore();
+    }
+
+    function resizeCanvas(){
+      const rect = canvas.getBoundingClientRect();
+      cw = rect.width;
+      ch = rect.height || 220;
+      canvas.width = Math.round(cw * dpr);
+      canvas.height = Math.round(ch * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      groundY = ch - 30;
+      player.y = groundY - player.h;
+    }
+
+    function resetGame(){
+      obstacles = [];
+      speed = 0.28;
+      spawnTimer = 0;
+      nextSpawnIn = 1000 + Math.random()*500;
+      elapsed = 0;
+      score = 0;
+      player.vy = 0;
+      player.y = groundY - player.h;
+      player.onGround = true;
+      scoreEl.textContent = '0';
+    }
+
+    function spawnObstacle(){
+      const h = 22 + Math.random()*14;
+      obstacles.push({ x: cw + 10, y: groundY - h, w: 12 + Math.random()*6, h });
+    }
+
+    function update(dt){
+      elapsed += dt;
+      score += dt * 0.01;
+      scoreEl.textContent = Math.floor(score);
+      speed = 0.28 + Math.min(0.35, elapsed / 40000);
+
+      player.vy += GRAVITY * dt;
+      player.y += player.vy * dt;
+      if(player.y >= groundY - player.h){
+        player.y = groundY - player.h;
+        player.vy = 0;
+        player.onGround = true;
+      }
+
+      spawnTimer += dt;
+      if(spawnTimer >= nextSpawnIn){
+        spawnTimer = 0;
+        nextSpawnIn = Math.max(500, 1100 - elapsed/60) + Math.random()*400;
+        spawnObstacle();
+      }
+      obstacles.forEach(o => o.x -= speed * dt);
+      obstacles = obstacles.filter(o => o.x + o.w > -10);
+
+      const pBox = { x: player.x+6, y: player.y+4, w: player.w-12, h: player.h-8 };
+      for(const o of obstacles){
+        if(pBox.x < o.x+o.w && pBox.x+pBox.w > o.x && pBox.y < o.y+o.h && pBox.y+pBox.h > o.y){
+          endGame();
+          break;
+        }
+      }
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,cw,ch);
+      ctx.fillStyle = 'rgba(58,47,34,0.35)';
+      ctx.fillRect(0, groundY, cw, ch-groundY);
+      ctx.strokeStyle = '#55432b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY);
+      ctx.lineTo(cw, groundY);
+      ctx.stroke();
+
+      drawBarrel(player.x, player.y, player.w, player.h);
+      obstacles.forEach(o => drawBottle(o.x, o.y, o.w, o.h));
+    }
+
+    function loop(ts){
+      if(state !== 'running') return;
+      if(lastTs === null) lastTs = ts;
+      let dt = Math.min(ts - lastTs, 40);
+      lastTs = ts;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function startGame(){
+      resizeCanvas();
+      resetGame();
+      state = 'running';
+      overlay.classList.add('hidden');
+      lastTs = null;
+      requestAnimationFrame(loop);
+    }
+
+    function endGame(){
+      state = 'over';
+      best = Math.max(best, Math.floor(score));
+      bestEl.textContent = best;
+      overlayTitle.textContent = 'Beczka wpadła w kałużę piwa';
+      overlaySub.textContent = `Wynik: ${Math.floor(score)} beczek. Spróbuj jeszcze raz!`;
+      startBtn.textContent = 'Zagraj ponownie';
+      overlay.classList.remove('hidden');
+    }
+
+    function jump(){
+      if(state === 'idle' || state === 'over'){ startGame(); return; }
+      if(state !== 'running') return;
+      if(player.onGround){
+        player.vy = JUMP_V;
+        player.onGround = false;
+      }
+    }
+
+    startBtn.addEventListener('click', startGame);
+    canvas.addEventListener('click', jump);
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); }, { passive:false });
+    document.addEventListener('keydown', (e) => {
+      if(e.code === 'Space' || e.code === 'ArrowUp'){
+        const rect = gameSection.getBoundingClientRect();
+        const inView = rect.top < window.innerHeight && rect.bottom > 0;
+        if(state === 'running' || inView){
+          e.preventDefault();
+          jump();
+        }
+      }
+    });
+    window.addEventListener('resize', () => {
+      if(state !== 'running') resizeCanvas();
+    });
+
+    resizeCanvas();
+    draw();
+  })();
 </script>
 
 </body>
