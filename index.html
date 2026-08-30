@@ -266,7 +266,30 @@
   }
   .tile-detail .img-frame.icon-only{ aspect-ratio: 1; max-width: 160px; }
   .tile-detail .img-frame svg{ width: 84px; height:84px; color: var(--eov); }
-  .tile-detail .img-frame img{ display:block; max-width: 100%; width: auto; max-height: 60vh; border-radius: 4px; }
+  .tile-detail .img-frame img{ display:block; max-width: 100%; width: auto; max-height: 60vh; border-radius: 4px; cursor: zoom-in; transition: filter .15s; }
+  .tile-detail .img-frame img:hover{ filter: brightness(1.08); }
+
+  /* ---------- lightbox ---------- */
+  .lightbox{
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(9,7,5,0.92);
+    display: none; align-items: center; justify-content: center;
+    padding: 40px 20px;
+    cursor: zoom-out;
+  }
+  .lightbox.show{ display: flex; }
+  .lightbox img{
+    max-width: 100%; max-height: 100%;
+    border-radius: 6px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.6);
+    border: 1px solid var(--border-lit);
+  }
+  .lightbox .lightbox-close{
+    position: absolute; top: 18px; right: 24px;
+    font-family: 'Cinzel', serif; font-size: 1.6rem; line-height: 1;
+    color: var(--text-dim); background: none; border: none; cursor: pointer;
+  }
+  .lightbox .lightbox-close:hover{ color: var(--eov); }
   .tile-detail .img-hint{ font-size: 0.72rem; color: var(--text-faint); margin-top: -8px; }
 
   footer{ padding: 32px 0; text-align:center; color: var(--text-faint); font-size: 0.78rem; }
@@ -409,6 +432,11 @@
 </section>
 
 <footer>BrowarOfTaern, gildia Broken Ranks warzona ze smakiem</footer>
+
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose" aria-label="Zamknij">&times;</button>
+  <img id="lightboxImg" src="" alt="">
+</div>
 
 <script>
   // ---------- rune steppers ----------
@@ -630,6 +658,7 @@
         const img = document.createElement('img');
         img.src = file;
         img.alt = data.name;
+        img.addEventListener('click', () => openLightbox(file, data.name));
         img.onerror = () => {
           const warn = document.createElement('div');
           warn.style.cssText = 'padding:24px;text-align:center;color:var(--text-faint);font-size:0.8rem;';
@@ -642,6 +671,28 @@
       document.getElementById('tileDetail').classList.add('show');
       document.getElementById('tileDetail').scrollIntoView({ behavior:'smooth', block:'nearest' });
     });
+  });
+
+  // ---------- lightbox (powiększanie grafik na kliknięcie) ----------
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightboxImg');
+
+  function openLightbox(src, alt){
+    lightboxImg.src = src;
+    lightboxImg.alt = alt || '';
+    lightbox.classList.add('show');
+  }
+  function closeLightbox(){
+    lightbox.classList.remove('show');
+    lightboxImg.src = '';
+  }
+  lightbox.addEventListener('click', closeLightbox);
+  document.getElementById('lightboxClose').addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeLightbox();
+  });
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape') closeLightbox();
   });
 </script>
 
