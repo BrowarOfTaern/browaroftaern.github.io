@@ -330,7 +330,7 @@
     overflow: hidden;
   }
   .game-hud{
-    display:flex; justify-content: space-between;
+    display:flex; align-items:center; gap: 16px;
     padding: 12px 16px; font-size: 0.82rem; color: var(--text-dim);
     border-bottom: 1px solid var(--border);
   }
@@ -344,6 +344,26 @@
   .game-overlay.hidden{ display:none; }
   .game-overlay-title{ font-family:'Cinzel Decorative', serif; font-size: 1.3rem; color: var(--eov); }
   .game-overlay-sub{ font-size: 0.82rem; color: var(--text-dim); max-width: 34ch; }
+  .btn.hidden{ display:none; }
+
+  .sound-toggle{
+    margin-left: auto; background: none; border: 1px solid var(--border-lit);
+    color: var(--text-dim); border-radius: 4px; width: 30px; height: 26px;
+    cursor: pointer; font-size: 0.9rem; line-height:1;
+  }
+  .sound-toggle:hover{ border-color: var(--eov); color: var(--eov); }
+
+  .to-top{
+    position: fixed; right: 20px; bottom: 20px; z-index: 30;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(180deg, #e2b53a, #b8871f);
+    color: #1a1409; border: 1px solid #8a6a1a;
+    font-size: 1.2rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    opacity: 1; transition: opacity .2s, transform .2s;
+  }
+  .to-top:hover{ transform: translateY(-2px); }
+  .to-top.hidden{ opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -488,22 +508,26 @@
   <div class="wrap">
     <div class="eyebrow">Dla zabicia czasu</div>
     <h2 class="section-title">Beczka Runner</h2>
-    <p class="section-desc">Uciekająca beczka piwa musi przeskakiwać przez potłuczone flaszki. Spacja, strzałka w górę, albo stuknięcie w ekran — im dłużej przeżyjesz, tym więcej beczek naliczy karczmarz.</p>
+    <p class="section-desc">Uciekająca beczka piwa musi przeskakiwać przez potłuczone flaszki i schylać się przed latającymi nietoperzami z piwnicy. Spacja/strzałka w górę = skok, strzałka w dół = schylenie. Na telefonie: stuknij żeby skoczyć, przytrzymaj żeby się schylić.</p>
 
     <div class="game-wrap">
       <div class="game-hud">
         <span>Wynik: <b id="gameScore">0</b></span>
         <span>Rekord (ta wizyta): <b id="gameBest">0</b></span>
+        <button class="sound-toggle" id="soundToggle" type="button" aria-label="Włącz/wyłącz dźwięk i muzykę">🔊</button>
       </div>
       <canvas id="gameCanvas"></canvas>
       <div class="game-overlay" id="gameOverlay">
         <div class="game-overlay-title" id="gameOverlayTitle">Beczka Runner</div>
-        <div class="game-overlay-sub" id="gameOverlaySub">Spacja / stuknięcie, żeby skoczyć nad flaszkami</div>
+        <div class="game-overlay-sub" id="gameOverlaySub">Spacja / stuknięcie, żeby skoczyć nad flaszkami, strzałka w dół żeby uniknąć nietoperzy</div>
         <button class="btn primary" id="gameStartBtn">Start</button>
+        <button class="btn ghost hidden" id="gameCopyBtn" type="button">Kopiuj wynik</button>
       </div>
     </div>
   </div>
 </section>
+
+<button class="to-top hidden" id="toTopBtn" aria-label="Przewiń do góry" type="button">↑</button>
 
 <footer>BrowarOfTaern, gildia Broken Ranks warzona ze smakiem</footer>
 
@@ -792,6 +816,8 @@
     const overlayTitle = document.getElementById('gameOverlayTitle');
     const overlaySub = document.getElementById('gameOverlaySub');
     const startBtn = document.getElementById('gameStartBtn');
+    const copyBtn = document.getElementById('gameCopyBtn');
+    const soundToggle = document.getElementById('soundToggle');
     const scoreEl = document.getElementById('gameScore');
     const bestEl = document.getElementById('gameBest');
     const gameSection = document.getElementById('gra');
@@ -800,18 +826,90 @@
     let cw = 0, ch = 0, groundY = 0;
     let state = 'idle'; // idle | running | over
     let best = 0;
+    let muted = false;
 
     const GRAVITY = 0.0028;
     const JUMP_V = -0.75;
-    const player = { x: 46, y: 0, w: 34, h: 34, vy: 0, onGround: true };
+    const STAND_H = 34;
+    const CROUCH_H = 18;
+    const player = { x: 46, y: 0, w: 34, h: STAND_H, vy: 0, onGround: true };
+    let crouching = false;
     let obstacles = [];
     let speed = 0.28;
+    const SPEED_MIN = 0.28, SPEED_MAX = 0.63;
     let spawnTimer = 0;
     let nextSpawnIn = 1200;
     let elapsed = 0;
     let score = 0;
     let lastTs = null;
 
+    // ---------- dźwięk (Web Audio, generowany kodem - bez plików audio) ----------
+    let audioCtx = null;
+    let musicPlaying = false;
+    let musicTimer = null;
+    let musicIndex = 0;
+    // oryginalna, prosta melodyjka w klimacie karczmy - nie kopiuje żadnego istniejącego utworu
+    const MELODY = [392.00,440.00,523.25,440.00,392.00,349.23,392.00,440.00,
+                     523.25,587.33,659.25,587.33,523.25,440.00,392.00,349.23];
+
+    function ensureAudio(){
+      if(!audioCtx){
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if(!AC) return null;
+        audioCtx = new AC();
+      }
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function beep(freq, dur, type, vol){
+      if(muted) return;
+      const ac = ensureAudio();
+      if(!ac) return;
+      const t = ac.currentTime;
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = type || 'square';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(vol || 0.12, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      osc.connect(gain); gain.connect(ac.destination);
+      osc.start(t); osc.stop(t + dur);
+    }
+
+    function jumpSound(){ beep(560, 0.08, 'square', 0.13); beep(760, 0.06, 'square', 0.09); }
+    function hitSound(){
+      if(muted) return;
+      const ac = ensureAudio();
+      if(!ac) return;
+      const t = ac.currentTime;
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(300, t);
+      osc.frequency.exponentialRampToValueAtTime(55, t + 0.35);
+      gain.gain.setValueAtTime(0.16, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      osc.connect(gain); gain.connect(ac.destination);
+      osc.start(t); osc.stop(t + 0.35);
+    }
+
+    function scheduleNextNote(){
+      if(!musicPlaying) return;
+      beep(MELODY[musicIndex % MELODY.length], 0.16, 'square', 0.045);
+      musicIndex++;
+      musicTimer = setTimeout(scheduleNextNote, 175);
+    }
+    function startMusic(){ if(musicPlaying) return; musicPlaying = true; musicIndex = 0; scheduleNextNote(); }
+    function stopMusic(){ musicPlaying = false; if(musicTimer) clearTimeout(musicTimer); }
+
+    soundToggle.addEventListener('click', () => {
+      muted = !muted;
+      soundToggle.textContent = muted ? '🔇' : '🔊';
+      ensureAudio();
+    });
+
+    // ---------- rysowanie ----------
     function roundRect(x,y,w,h,r){
       ctx.beginPath();
       ctx.moveTo(x+r,y);
@@ -828,7 +926,7 @@
       ctx.fillStyle = '#e2b53a';
       ctx.strokeStyle = '#8a6a1a';
       ctx.lineWidth = 2;
-      roundRect(0,0,w,h,8);
+      roundRect(0,0,w,h,7);
       ctx.fill(); ctx.stroke();
       ctx.strokeStyle = 'rgba(26,20,9,0.5)';
       ctx.lineWidth = 2;
@@ -850,6 +948,33 @@
       ctx.restore();
     }
 
+    function drawBat(x,y,w,h){
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.fillStyle = '#c9432f';
+      ctx.strokeStyle = '#632119';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(w*0.5, h*0.2);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(w*0.28, h*0.55);
+      ctx.lineTo(0, h);
+      ctx.lineTo(w*0.5, h*0.75);
+      ctx.lineTo(w, h);
+      ctx.lineTo(w*0.72, h*0.55);
+      ctx.lineTo(w, 0);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+
+    // ---------- pętla gry ----------
+    function playerBox(){
+      const h = (crouching && player.onGround) ? CROUCH_H : player.h;
+      const y = (crouching && player.onGround) ? (groundY - CROUCH_H) : player.y;
+      return { x: player.x, y, w: player.w, h };
+    }
+
     function resizeCanvas(){
       const rect = canvas.getBoundingClientRect();
       cw = rect.width;
@@ -863,7 +988,7 @@
 
     function resetGame(){
       obstacles = [];
-      speed = 0.28;
+      speed = SPEED_MIN;
       spawnTimer = 0;
       nextSpawnIn = 1000 + Math.random()*500;
       elapsed = 0;
@@ -871,19 +996,28 @@
       player.vy = 0;
       player.y = groundY - player.h;
       player.onGround = true;
+      crouching = false;
       scoreEl.textContent = '0';
+      copyBtn.classList.add('hidden');
     }
 
     function spawnObstacle(){
-      const h = 22 + Math.random()*14;
-      obstacles.push({ x: cw + 10, y: groundY - h, w: 12 + Math.random()*6, h });
+      const canFly = elapsed > 5000 && Math.random() < 0.35;
+      if(canFly){
+        const h = 14;
+        const bottom = groundY - CROUCH_H - 6;
+        obstacles.push({ type:'fly', x: cw + 10, y: bottom - h, w: 24, h });
+      } else {
+        const h = 22 + Math.random()*14;
+        obstacles.push({ type:'ground', x: cw + 10, y: groundY - h, w: 12 + Math.random()*6, h });
+      }
     }
 
     function update(dt){
       elapsed += dt;
       score += dt * 0.01;
       scoreEl.textContent = Math.floor(score);
-      speed = 0.28 + Math.min(0.35, elapsed / 40000);
+      speed = SPEED_MIN + Math.min(SPEED_MAX - SPEED_MIN, elapsed / 40000);
 
       player.vy += GRAVITY * dt;
       player.y += player.vy * dt;
@@ -891,6 +1025,8 @@
         player.y = groundY - player.h;
         player.vy = 0;
         player.onGround = true;
+      } else {
+        crouching = false; // nie da się schylić w powietrzu
       }
 
       spawnTimer += dt;
@@ -902,9 +1038,10 @@
       obstacles.forEach(o => o.x -= speed * dt);
       obstacles = obstacles.filter(o => o.x + o.w > -10);
 
-      const pBox = { x: player.x+6, y: player.y+4, w: player.w-12, h: player.h-8 };
+      const pBox = playerBox();
+      const hb = { x: pBox.x+6, y: pBox.y+4, w: pBox.w-12, h: pBox.h-8 };
       for(const o of obstacles){
-        if(pBox.x < o.x+o.w && pBox.x+pBox.w > o.x && pBox.y < o.y+o.h && pBox.y+pBox.h > o.y){
+        if(hb.x < o.x+o.w && hb.x+hb.w > o.x && hb.y < o.y+o.h && hb.y+hb.h > o.y){
           endGame();
           break;
         }
@@ -913,6 +1050,12 @@
 
     function draw(){
       ctx.clearRect(0,0,cw,ch);
+
+      // tło ciemnieje/czerwienieje wraz z rosnącym tempem
+      const t = Math.max(0, Math.min(1, (speed - SPEED_MIN) / (SPEED_MAX - SPEED_MIN)));
+      ctx.fillStyle = `rgba(201,67,47,${(0.04 + 0.16*t).toFixed(3)})`;
+      ctx.fillRect(0,0,cw,ch);
+
       ctx.fillStyle = 'rgba(58,47,34,0.35)';
       ctx.fillRect(0, groundY, cw, ch-groundY);
       ctx.strokeStyle = '#55432b';
@@ -922,8 +1065,9 @@
       ctx.lineTo(cw, groundY);
       ctx.stroke();
 
-      drawBarrel(player.x, player.y, player.w, player.h);
-      obstacles.forEach(o => drawBottle(o.x, o.y, o.w, o.h));
+      const pBox = playerBox();
+      drawBarrel(pBox.x, pBox.y, pBox.w, pBox.h);
+      obstacles.forEach(o => o.type === 'fly' ? drawBat(o.x, o.y, o.w, o.h) : drawBottle(o.x, o.y, o.w, o.h));
     }
 
     function loop(ts){
@@ -937,45 +1081,84 @@
     }
 
     function startGame(){
+      ensureAudio();
       resizeCanvas();
       resetGame();
       state = 'running';
       overlay.classList.add('hidden');
       lastTs = null;
+      startMusic();
       requestAnimationFrame(loop);
     }
 
     function endGame(){
       state = 'over';
+      stopMusic();
+      hitSound();
       best = Math.max(best, Math.floor(score));
       bestEl.textContent = best;
       overlayTitle.textContent = 'Beczka wpadła w kałużę piwa';
       overlaySub.textContent = `Wynik: ${Math.floor(score)} beczek. Spróbuj jeszcze raz!`;
       startBtn.textContent = 'Zagraj ponownie';
+      copyBtn.classList.remove('hidden');
+      copyBtn.textContent = 'Kopiuj wynik';
+      copyBtn.onclick = () => {
+        const text = `Zdobyłem ${Math.floor(score)} beczek w Beczka Runner na stronie gildii BrowarOfTaern! 🍺`;
+        const done = () => { copyBtn.textContent = 'Skopiowano!'; setTimeout(() => copyBtn.textContent = 'Kopiuj wynik', 1500); };
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text).then(done).catch(done);
+        } else {
+          done();
+        }
+      };
       overlay.classList.remove('hidden');
     }
 
     function jump(){
       if(state === 'idle' || state === 'over'){ startGame(); return; }
       if(state !== 'running') return;
-      if(player.onGround){
+      if(player.onGround && !crouching){
         player.vy = JUMP_V;
         player.onGround = false;
+        jumpSound();
       }
+    }
+
+    function setCrouch(on){
+      if(state !== 'running') return;
+      crouching = on && player.onGround;
     }
 
     startBtn.addEventListener('click', startGame);
     canvas.addEventListener('click', jump);
-    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); }, { passive:false });
+
+    let touchStartTs = 0;
+    let crouchHoldTimer = null;
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      touchStartTs = Date.now();
+      crouchHoldTimer = setTimeout(() => setCrouch(true), 150);
+    }, { passive:false });
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      clearTimeout(crouchHoldTimer);
+      const held = Date.now() - touchStartTs;
+      if(held < 150){ jump(); }
+      setCrouch(false);
+    }, { passive:false });
+
     document.addEventListener('keydown', (e) => {
+      const rect = gameSection.getBoundingClientRect();
+      const inView = rect.top < window.innerHeight && rect.bottom > 0;
       if(e.code === 'Space' || e.code === 'ArrowUp'){
-        const rect = gameSection.getBoundingClientRect();
-        const inView = rect.top < window.innerHeight && rect.bottom > 0;
-        if(state === 'running' || inView){
-          e.preventDefault();
-          jump();
-        }
+        if(state === 'running' || inView){ e.preventDefault(); jump(); }
       }
+      if(e.code === 'ArrowDown'){
+        if(state === 'running' || inView){ e.preventDefault(); setCrouch(true); }
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      if(e.code === 'ArrowDown') setCrouch(false);
     });
     window.addEventListener('resize', () => {
       if(state !== 'running') resizeCanvas();
@@ -983,6 +1166,17 @@
 
     resizeCanvas();
     draw();
+  })();
+
+  // ---------- przycisk "do góry" ----------
+  (function(){
+    const btn = document.getElementById('toTopBtn');
+    window.addEventListener('scroll', () => {
+      btn.classList.toggle('hidden', window.scrollY < 500);
+    });
+    btn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   })();
 </script>
 
