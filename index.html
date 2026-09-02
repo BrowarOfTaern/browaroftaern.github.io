@@ -322,7 +322,63 @@
 
   footer{ padding: 32px 0; text-align:center; color: var(--text-faint); font-size: 0.78rem; }
 
-  /* ---------- symulator drifów ---------- */
+  /* ---------- symulator drifów: figurka ekwipunku ---------- */
+  .doll-wrap{ display:flex; justify-content:center; margin-bottom: 10px; }
+  .doll-grid{
+    display:grid;
+    grid-template-columns: repeat(3, 84px);
+    grid-template-rows: repeat(6, 84px);
+    gap: 6px 14px;
+    grid-template-areas:
+      ".      helm    ."
+      "amulet .       bracers"
+      "weapon chest   cloak"
+      ".      belt    ."
+      "gloves pants   shield"
+      "ring1  boots   ring2";
+  }
+  .doll-cell{ display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:6px; }
+  .doll-slot{
+    width:60px; height:60px; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, var(--bg-3), var(--bg));
+    border:2px dashed var(--border-lit); color: var(--text-faint);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-family:'Cinzel', serif; font-size:0.95rem;
+    transition: border-color .15s, transform .15s; flex-shrink:0;
+  }
+  .doll-slot:hover{ border-color: var(--eov); transform: scale(1.06); }
+  .doll-slot.filled{
+    border-style:solid; border-color: var(--eov); color: var(--eov);
+    background: radial-gradient(circle at 35% 30%, var(--bg-2), var(--bg-3));
+  }
+  .doll-caption{ text-align:center; font-size:0.62rem; color: var(--text-faint); line-height:1.3; max-width:84px; }
+  .doll-caption .cap-type{ text-transform:uppercase; letter-spacing:0.05em; }
+  .doll-caption .cap-item{ color: var(--text-dim); display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .item-picker{
+    max-width: 480px; margin: 0 auto 26px; background: var(--bg-3);
+    border: 1px solid var(--border-lit); border-radius: var(--radius); padding: 18px;
+  }
+  .item-picker.hidden{ display:none; }
+  .item-picker-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px; }
+  .item-picker-head span{ font-family:'Cinzel', serif; color: var(--eov); font-size:1rem; }
+  .item-picker-close{ background:none; border:none; color: var(--text-dim); font-size:1.3rem; cursor:pointer; line-height:1; }
+  .item-picker-close:hover{ color: var(--eov); }
+  .item-search{
+    width:100%; background: var(--bg); border:1px solid var(--border-lit); color: var(--text);
+    border-radius:4px; padding:8px 10px; font-family:'IBM Plex Mono', monospace; font-size:0.85rem; margin-bottom:10px;
+  }
+  .item-picker-list{ max-height: 260px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+  .item-option{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 10px; border-radius:4px; cursor:pointer; font-size:0.85rem;
+    border:1px solid transparent;
+  }
+  .item-option:hover{ background: var(--stone); border-color: var(--border-lit); }
+  .item-option .item-rank{ color: var(--text-faint); font-size:0.72rem; font-family:'IBM Plex Mono', monospace; }
+  .item-picker-empty{ color: var(--text-faint); font-size:0.82rem; padding: 10px; text-align:center; }
+
+  /* ---------- symulator drifów: karta założonego przedmiotu ---------- */
   .gear-card{
     background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
     border: 1px solid var(--border-lit); border-radius: var(--radius);
@@ -522,17 +578,29 @@
   <div class="wrap">
     <div class="eyebrow">Narzędzie gildii</div>
     <h2 class="section-title">Symulator Drifów</h2>
-    <p class="section-desc">Dodaj sprzęty, wybierz rangę i poziom inkrustacji (to razem wyznacza pojemność i liczbę slotów), a potem dobierz drify. Na dole zobaczysz zsumowane bonusy z całego builda — z automatycznie naliczaną karą za powtarzające się modyfikatory.</p>
+    <p class="section-desc">Kliknij kółko na figurce ekwipunku, wybierz prawdziwy przedmiot z listy (np. "Pamięć Morany"), a potem dobierz drify do jego slotów. Ranga i pojemność ustawiają się same na podstawie wybranego przedmiotu.</p>
 
-    <button class="btn primary" id="addGearBtn">+ Dodaj sprzęt</button>
+    <div class="doll-wrap">
+      <div class="doll-grid" id="dollGrid"></div>
+    </div>
 
-    <div id="gearList" style="margin-top: 22px;"></div>
+    <div class="item-picker hidden" id="itemPicker">
+      <div class="item-picker-head">
+        <span id="itemPickerTitle">Wybierz przedmiot</span>
+        <button class="item-picker-close" id="itemPickerClose" type="button">&times;</button>
+      </div>
+      <input type="text" class="item-search" id="itemSearch" placeholder="Szukaj po nazwie...">
+      <div class="item-picker-list" id="itemPickerList"></div>
+      <button class="btn ghost" id="itemUnequipBtn" style="margin-top:10px;">Zdejmij przedmiot</button>
+    </div>
+
+    <div id="equippedDetails"></div>
 
     <div class="drif-summary">
       <h3>Podsumowanie buildu</h3>
       <div id="drifSummaryBody"></div>
       <div class="drif-note">
-        Uwaga: pojemność i liczba slotów dla rangi IX są oszacowane na podstawie wzoru widocznego w pozostałych rangach (WikiBR nie pokazuje bezpośredniego przykładu przedmiotu tej rangi). Drify z obrażeniami żywiołowymi (Kalh/Unn/Val) oraz Err działają wyłącznie w broniach i tylko jeden modyfikator żywiołowy na broń — to narzędzie tego nie wymusza automatycznie, upilnuj sam przy realnym osadzaniu. Kara za powtórzenia liczona jest łącznie dla całego builda (wszystkie dodane sprzęty razem). Dla Arcydrifów na poziomach 19-21 wartości % mogą się nieznacznie różnić od WikiBR (rozjazd wyszedł przy weryfikacji tabeli źródłowej) — przy bardzo wysokopoziomowych Arcydrifach warto dla pewności zerknąć na wikibr.pl/index.php/Drify.
+        Baza przedmiotów to wybór realnych rarów z WikiBR (bossowie z rang II-XII) — nie każdy przedmiot z gry jest tu ujęty, ale rangi i kategorie slotów są prawdziwe. Pojemność i liczba slotów na drify wyliczają się z rangi tak samo jak w grze. Drify z obrażeniami żywiołowymi (Kalh/Unn/Val) oraz Err działają wyłącznie w broniach i tylko jeden modyfikator żywiołowy na broń — to narzędzie tego nie wymusza automatycznie, upilnuj sam przy realnym osadzaniu. Kara za powtórzenia liczona jest łącznie dla całego builda. Dla Arcydrifów na poziomach 19-21 wartości % mogą się nieznacznie różnić od WikiBR (rozjazd wyszedł przy weryfikacji tabeli źródłowej).
       </div>
     </div>
   </div>
@@ -1302,11 +1370,10 @@
     function drifPower(mod, level){ return POWER_TABLE[mod.group][bracket(level)]; }
     function maxSlotsFor(rankKey, inkrustacja){
       const base = RANK_DATA[rankKey];
-      let slots = base.slots;
-      let cap = base.cap;
+      let slots = base.slots, cap = base.cap;
       if(inkrustacja >= 1){ cap += 1; if(rankKey === 'II' || rankKey === 'III') slots += 1; }
-      if(inkrustacja >= 2){ cap += 1; } // razem +2 na 2★ (zgodnie z tabelą bonusów inkrustacji)
-      if(inkrustacja >= 3){ cap += 2; } // razem +4 na 3★
+      if(inkrustacja >= 2){ cap += 1; }
+      if(inkrustacja >= 3){ cap += 2; }
       return { cap, slots };
     }
     function eligibleSizes(rankKey){
@@ -1314,52 +1381,171 @@
       return Object.keys(SIZES).filter(s => rn >= SIZES[s].minRankNum);
     }
 
-    let gearItems = [];
-    let nextGearId = 1;
+    // ---------- baza przedmiotów (realne rary z WikiBR, bossowie rang II-XII) ----------
+    const ITEMS = [
+      {name:'Derengil', cat:'Miecze jednoręczne', rank:'II'}, {name:'Maiarot', cat:'Amulety', rank:'II'}, {name:'Sturprang', cat:'Laski', rank:'II'},
+      {name:'Arcanscape', cat:'Pierścienie', rank:'II'}, {name:'Ayol', cat:'Łuki', rank:'II'}, {name:'Martumal', cat:'Hełmy', rank:'II'},
+      {name:'Anabolik', cat:'Pasy', rank:'II'}, {name:'Bartaur', cat:'Zbroje', rank:'II'}, {name:'Tasak', cat:'Topory dwuręczne', rank:'II'},
+      {name:'Basileus', cat:'Pierścienie', rank:'III'}, {name:'Fraxy', cat:'Rękawice', rank:'III'}, {name:'Grzebień', cat:'Hełmy', rank:'III'}, {name:'Moczary', cat:'Buty', rank:'III'},
+      {name:'Czengsvesy', cat:'Buty', rank:'II'}, {name:'Fiskorl', cat:'Pierścienie', rank:'III'}, {name:'Rolrak', cat:'Kastety', rank:'II'},
+      {name:'Davgretor', cat:'Młoty dwuręczne', rank:'III'}, {name:'Geomorph Core', cat:'Laski', rank:'III'}, {name:'Markahn', cat:'Amulety', rank:'III'},
+      {name:'Brassary', cat:'Rękawice', rank:'III'}, {name:'Piroklast', cat:'Łuki', rank:'III'}, {name:'Uguns', cat:'Pierścienie', rank:'III'},
+      {name:'Fulgur', cat:'Pierścienie', rank:'III'}, {name:'Radius electricum', cat:'Pasy', rank:'III'}, {name:'Sphaera', cat:'Amulety', rank:'III'},
+      {name:'Ishelm', cat:'Hełmy', rank:'III'}, {name:'Isthrimm', cat:'Tarcze', rank:'III'}, {name:'Isverd', cat:'Miecze jednoręczne', rank:'III'},
+      {name:'Karlder', cat:'Pierścienie', rank:'III'}, {name:'Khalam', cat:'Hełmy', rank:'III'}, {name:'Tężec', cat:'Laski', rank:'III'},
+      {name:'Brunnle', cat:'Zbroje', rank:'III'}, {name:'Lysmary', cat:'Buty', rank:'III'}, {name:'Sidun', cat:'Miecze dwuręczne', rank:'III'},
+      {name:'Gest Władcy', cat:'Rękawice', rank:'III'}, {name:'Koriatula', cat:'Pasy', rank:'III'}, {name:'Obroża Władcy', cat:'Amulety', rank:'III'}, {name:'Promuris', cat:'Pasy', rank:'III'},
+      {name:'Irkamale', cat:'Kastety', rank:'III'}, {name:'Jeroszki', cat:'Buty', rank:'III'}, {name:'Ostolbin', cat:'Amulety', rank:'III'},
+      {name:'Caratris', cat:'Amulety', rank:'IV'}, {name:'Smocze Skrzydło', cat:'Tarcze', rank:'IV'}, {name:'Smoczy Gnat', cat:'Laski', rank:'IV'},
+      {name:'Balast', cat:'Pierścienie', rank:'IV'}, {name:'Bryza', cat:'Płaszcze', rank:'IV'}, {name:'Navigon', cat:'Pierścienie', rank:'IV'}, {name:'Nit', cat:'Pierścienie', rank:'IV'}, {name:'Pancerz Komandorski', cat:'Zbroje', rank:'IV'},
+      {name:'Gathril', cat:'Hełmy', rank:'V'}, {name:'Nurthil', cat:'Płaszcze', rank:'V'}, {name:'Tirhel', cat:'Spodnie', rank:'V'}, {name:'Virthil', cat:'Zbroje', rank:'V'},
+      {name:'Danthum', cat:'Amulety', rank:'V'}, {name:'Pressory', cat:'Rękawice', rank:'V'}, {name:'Tangnary', cat:'Buty', rank:'V'}, {name:'Valazan', cat:'Amulety', rank:'V'},
+      {name:'Berglisy', cat:'Karwasze', rank:'V'}, {name:'Czacha', cat:'Hełmy', rank:'V'}, {name:'Diabolo', cat:'Zbroje', rank:'V'}, {name:'Wzorek', cat:'Spodnie', rank:'V'},
+      {name:'Geury', cat:'Karwasze', rank:'V'}, {name:'Obdartusy', cat:'Spodnie', rank:'V'}, {name:'Ognisty Młot', cat:'Młoty dwuręczne', rank:'V'}, {name:'Opoka bogów', cat:'Zbroje', rank:'V'},
+      {name:'Sentrion', cat:'Pasy', rank:'V'}, {name:'Urntsul', cat:'Laski', rank:'VI'}, {name:'Vaekany', cat:'Rękawice', rank:'V'}, {name:'Virral', cat:'Łuki', rank:'VI'}, {name:'Xenothor', cat:'Płaszcze', rank:'V'},
+      {name:'Biltabandury', cat:'Rękawice', rank:'VI'}, {name:'Debba', cat:'Płaszcze', rank:'VI'}, {name:'Ghaitarog', cat:'Hełmy', rank:'VI'},
+      {name:'Oko', cat:'Pierścienie', rank:'V'}, {name:'Drakhgard', cat:'Tarcze', rank:'V'}, {name:'Łamacz Woli', cat:'Młoty jednoręczne', rank:'V'}, {name:'Ślady Zdarzeń', cat:'Buty', rank:'V'}, {name:'Wstęga Heurokratosa', cat:'Pasy', rank:'V'},
+      {name:'Nadzieja Pokoleń', cat:'Zbroje', rank:'VII'}, {name:'Powrót Ivravula', cat:'Płaszcze', rank:'VII'}, {name:'Władca losu', cat:'Laski', rank:'VII'}, {name:'Zemsta Ivravula', cat:'Amulety', rank:'VII'},
+      {name:'Buoriany', cat:'Kastety', rank:'VI'}, {name:'Dagorilm', cat:'Pasy', rank:'VI'}, {name:'Lawina', cat:'Młoty jednoręczne', rank:'VI'}, {name:'Thorimmy', cat:'Buty', rank:'VI'},
+      {name:'Dracorporis', cat:'Płaszcze', rank:'VII'}, {name:'Istav', cat:'Laski', rank:'VII'}, {name:'Varrvy', cat:'Spodnie', rank:'VII'}, {name:'Virveny', cat:'Buty', rank:'VII'},
+      {name:'Fanga', cat:'Kastety', rank:'VII'}, {name:'Griv', cat:'Pierścienie', rank:'VII'}, {name:'Vogurun', cat:'Amulety', rank:'VII'}, {name:'Yurugu', cat:'Amulety', rank:'VII'}, {name:'Zadry', cat:'Rękawice', rank:'VII'},
+      {name:'Harttraum', cat:'Zbroje', rank:'VII'}, {name:'Otwieracz', cat:'Miecze jednoręczne', rank:'VII'}, {name:'Sigil', cat:'Hełmy', rank:'VII'},
+      {name:'Aquariusy', cat:'Spodnie', rank:'VIII'}, {name:'Aqueniry', cat:'Buty', rank:'VIII'}, {name:'Nurt', cat:'Pasy', rank:'VIII'}, {name:'Tsunami', cat:'Płaszcze', rank:'VIII'},
+      {name:'Batagur', cat:'Młoty dwuręczne', rank:'VII'}, {name:'Karapaks', cat:'Tarcze', rank:'VIII'}, {name:'Mauremys', cat:'Pierścienie', rank:'VIII'},
+      {name:'Gjolmar', cat:'Łuki', rank:'VII'}, {name:'Skiilfy', cat:'Spodnie', rank:'VIII'}, {name:'Skogan', cat:'Pierścienie', rank:'VIII'},
+      {name:'Exuvium', cat:'Pasy', rank:'VIII'}, {name:'Pazury', cat:'Rękawice', rank:'VIII'}, {name:'Pysk', cat:'Hełmy', rank:'VIII'},
+      {name:'Rozdzieracz Światów', cat:'Topory dwuręczne', rank:'VIII'}, {name:'Scornaxy', cat:'Karwasze', rank:'VIII'}, {name:'Furiony', cat:'Karwasze', rank:'VIII'}, {name:'Hvariony', cat:'Rękawice', rank:'VIII'},
+      {name:'Angwallion', cat:'Płaszcze', rank:'IX'}, {name:'Dmorlung', cat:'Zbroje', rank:'VIII'}, {name:'Htagan', cat:'Hełmy', rank:'IX'}, {name:'Vorleah', cat:'Zbroje', rank:'VIII'},
+      {name:'Envile', cat:'Buty', rank:'X'}, {name:'Nienawiść Draugula', cat:'Pasy', rank:'X'}, {name:'Przysięga Draugula', cat:'Pierścienie', rank:'X'}, {name:'Zagłada Ludów', cat:'Pierścienie', rank:'X'},
+      {name:'Alendry', cat:'Buty', rank:'X'}, {name:'Erbaile', cat:'Spodnie', rank:'X'}, {name:'Szpony', cat:'Kastety', rank:'X'}, {name:'Taehal', cat:'Łuki', rank:'X'},
+      {name:'Ariarchy', cat:'Karwasze', rank:'X'}, {name:'Groza Seleny', cat:'Pasy', rank:'X'}, {name:'Hańba Seleny', cat:'Płaszcze', rank:'X'}, {name:'Mallus Selenorum', cat:'Topory jednoręczne', rank:'X'}, {name:'Serce Seleny', cat:'Amulety', rank:'X'}, {name:'Undurisy', cat:'Karwasze', rank:'X'},
+      {name:'Admiralski gronostaj', cat:'Płaszcze', rank:'X'}, {name:'Inavoxy', cat:'Karwasze', rank:'X'}, {name:'Kil', cat:'Tarcze', rank:'X'}, {name:'Szpony Seimhi', cat:'Rękawice', rank:'X'}, {name:'Takerony', cat:'Karwasze', rank:'X'}, {name:'Trójząb admiralski', cat:'Laski', rank:'X'},
+      {name:'Ból', cat:'Laski', rank:'X'}, {name:'Cierń', cat:'Miecze dwuręczne', rank:'X'}, {name:'Cierpiętniki', cat:'Buty', rank:'X'}, {name:'Udręki', cat:'Spodnie', rank:'X'},
+      {name:'Aeterus Passio', cat:'Rękawice', rank:'X'}, {name:'Miłość Morany', cat:'Hełmy', rank:'X'}, {name:'Objęcia Morany', cat:'Pasy', rank:'X'}, {name:'Pamięć Morany', cat:'Hełmy', rank:'X'},
+      {name:'Arhauty', cat:'Buty', rank:'XI'}, {name:'Dorbis', cat:'Amulety', rank:'XI'}, {name:'Ortasis', cat:'Amulety', rank:'XI'}, {name:'Temary', cat:'Spodnie', rank:'XI'},
+      {name:'Cień Tarula', cat:'Płaszcze', rank:'XI'}, {name:'Salmurn', cat:'Zbroje', rank:'XII'}, {name:'Zalla', cat:'Zbroje', rank:'XII'}, {name:'Ziraki', cat:'Spodnie', rank:'XI'},
+      {name:'Dar Skrzydlatej', cat:'Pierścienie', rank:'XII'}, {name:'Remigesy', cat:'Rękawice', rank:'XII'}, {name:'Vengur', cat:'Płaszcze', rank:'XII'}, {name:'Voglery', cat:'Rękawice', rank:'XII'}, {name:'Wyrok Hellara', cat:'Pasy', rank:'XII'},
+      {name:'Arcana', cat:'Buty', rank:'XII'}, {name:'Exarchius', cat:'Hełmy', rank:'XII'}, {name:'Praetoris', cat:'Hełmy', rank:'XII'}, {name:'Sacrigar', cat:'Pasy', rank:'XII'},
+    ];
 
-    function addGear(){
-      gearItems.push({ id: nextGearId++, rank: 'VII', ink: 0, slots: [] });
-      syncSlots(gearItems[gearItems.length-1]);
-      render();
-    }
-    function syncSlots(gear){
-      const { slots: slotCount } = maxSlotsFor(gear.rank, gear.ink);
-      const elig = eligibleSizes(gear.rank);
-      while(gear.slots.length < slotCount){
-        gear.slots.push({ id: Math.random().toString(36).slice(2), size: elig[0] || 'sub', modKey: '', level: 1 });
-      }
-      while(gear.slots.length > slotCount){ gear.slots.pop(); }
-      gear.slots.forEach(s => { if(!elig.includes(s.size)) s.size = elig[0] || 'sub'; });
-    }
+    const SLOT_LABELS = { helm:'Hełm', amulet:'Amulet', cloak:'Płaszcz', chest:'Zbroja', belt:'Pas', gloves:'Rękawice', bracers:'Karwasze', pants:'Spodnie', boots:'Buty', ring1:'Pierścień 1', ring2:'Pierścień 2', weapon:'Broń', shield:'Tarcza' };
+    const SLOT_CATS = {
+      helm:['Hełmy'], amulet:['Amulety'], cloak:['Płaszcze'], chest:['Zbroje'], belt:['Pasy'],
+      gloves:['Rękawice'], bracers:['Karwasze'], pants:['Spodnie'], boots:['Buty'],
+      ring1:['Pierścienie'], ring2:['Pierścienie'], shield:['Tarcze'],
+      weapon:['Miecze jednoręczne','Miecze dwuręczne','Topory jednoręczne','Topory dwuręczne','Młoty jednoręczne','Młoty dwuręczne','Łuki','Laski','Kastety']
+    };
+    const SLOT_ORDER = ['helm','amulet','bracers','weapon','chest','cloak','belt','gloves','pants','shield','ring1','boots','ring2'];
 
-    const gearListEl = document.getElementById('gearList');
+    let equipped = {}; // slotKey -> { itemName, rank, ink, drifSlots:[...] }
+    let activeSlot = null;
+
+    const dollGrid = document.getElementById('dollGrid');
+    const picker = document.getElementById('itemPicker');
+    const pickerTitle = document.getElementById('itemPickerTitle');
+    const pickerList = document.getElementById('itemPickerList');
+    const pickerSearch = document.getElementById('itemSearch');
+    const pickerClose = document.getElementById('itemPickerClose');
+    const unequipBtn = document.getElementById('itemUnequipBtn');
+    const equippedDetailsEl = document.getElementById('equippedDetails');
     const summaryEl = document.getElementById('drifSummaryBody');
-    document.getElementById('addGearBtn').addEventListener('click', addGear);
 
-    function render(){
-      renderGearList();
-      renderSummary();
+    function itemsForSlot(slotKey){
+      const cats = SLOT_CATS[slotKey];
+      return ITEMS.filter(it => cats.includes(it.cat)).sort((a,b) => RANK_NUM[a.rank]-RANK_NUM[b.rank] || a.name.localeCompare(b.name));
     }
 
-    function renderGearList(){
-      if(gearItems.length === 0){
-        gearListEl.innerHTML = '<div class="drif-empty">Nie dodano jeszcze żadnego sprzętu. Kliknij "+ Dodaj sprzęt", żeby zacząć budować.</div>';
+    function openPicker(slotKey){
+      activeSlot = slotKey;
+      pickerTitle.textContent = 'Wybierz przedmiot — ' + SLOT_LABELS[slotKey];
+      pickerSearch.value = '';
+      unequipBtn.style.display = equipped[slotKey] ? 'block' : 'none';
+      renderPickerList();
+      picker.classList.remove('hidden');
+      picker.scrollIntoView({ behavior:'smooth', block:'nearest' });
+      pickerSearch.focus();
+    }
+    function closePicker(){ picker.classList.add('hidden'); activeSlot = null; }
+
+    function renderPickerList(){
+      const q = pickerSearch.value.trim().toLowerCase();
+      const items = itemsForSlot(activeSlot).filter(it => it.name.toLowerCase().includes(q));
+      if(items.length === 0){
+        pickerList.innerHTML = '<div class="item-picker-empty">Brak wyników.</div>';
         return;
       }
-      gearListEl.innerHTML = '';
-      gearItems.forEach(gear => {
+      pickerList.innerHTML = items.map(it => `<div class="item-option" data-name="${it.name}"><span>${it.name}</span><span class="item-rank">Ranga ${it.rank}</span></div>`).join('');
+      pickerList.querySelectorAll('.item-option').forEach(el => {
+        el.addEventListener('click', () => {
+          const item = ITEMS.find(i => i.name === el.dataset.name);
+          equipItem(activeSlot, item);
+          closePicker();
+          render();
+        });
+      });
+    }
+    pickerSearch.addEventListener('input', renderPickerList);
+    pickerClose.addEventListener('click', closePicker);
+    unequipBtn.addEventListener('click', () => { delete equipped[activeSlot]; closePicker(); render(); });
+
+    function equipItem(slotKey, item){
+      const existing = equipped[slotKey];
+      equipped[slotKey] = {
+        itemName: item.name, rank: item.rank, ink: existing ? existing.ink : 0,
+        drifSlots: existing && existing.rank === item.rank ? existing.drifSlots : []
+      };
+      syncDrifSlots(equipped[slotKey]);
+    }
+    function syncDrifSlots(gear){
+      const { slots: slotCount } = maxSlotsFor(gear.rank, gear.ink);
+      const elig = eligibleSizes(gear.rank);
+      while(gear.drifSlots.length < slotCount) gear.drifSlots.push({ id: Math.random().toString(36).slice(2), size: elig[0]||'sub', modKey:'', level:1 });
+      while(gear.drifSlots.length > slotCount) gear.drifSlots.pop();
+      gear.drifSlots.forEach(s => { if(!elig.includes(s.size)) s.size = elig[0]||'sub'; });
+    }
+
+    function renderDoll(){
+      dollGrid.innerHTML = '';
+      SLOT_ORDER.forEach(slotKey => {
+        const gear = equipped[slotKey];
+        const cell = document.createElement('div');
+        cell.className = 'doll-cell';
+        cell.style.gridArea = slotKey;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'doll-slot' + (gear ? ' filled' : '');
+        btn.textContent = gear ? gear.rank : '+';
+        btn.title = gear ? gear.itemName : ('Dodaj: ' + SLOT_LABELS[slotKey]);
+        btn.addEventListener('click', () => openPicker(slotKey));
+        const caption = document.createElement('div');
+        caption.className = 'doll-caption';
+        caption.innerHTML = `<span class="cap-type">${SLOT_LABELS[slotKey]}</span>${gear ? `<span class="cap-item">${gear.itemName}</span>` : ''}`;
+        cell.appendChild(btn);
+        cell.appendChild(caption);
+        dollGrid.appendChild(cell);
+      });
+    }
+
+    function renderEquippedDetails(){
+      const filled = SLOT_ORDER.filter(k => equipped[k]);
+      if(filled.length === 0){
+        equippedDetailsEl.innerHTML = '<div class="drif-empty">Kliknij kółko na figurce, żeby założyć pierwszy przedmiot.</div>';
+        return;
+      }
+      equippedDetailsEl.innerHTML = '';
+      filled.forEach(slotKey => {
+        const gear = equipped[slotKey];
         const { cap, slots: slotCount } = maxSlotsFor(gear.rank, gear.ink);
-        const usedPower = gear.slots.reduce((sum,s) => s.modKey ? sum + drifPower(MOD_BY_KEY[s.modKey], s.level) : sum, 0);
+        const usedPower = gear.drifSlots.reduce((sum,s) => s.modKey ? sum + drifPower(MOD_BY_KEY[s.modKey], s.level) : sum, 0);
         const over = usedPower > cap;
         const elig = eligibleSizes(gear.rank);
 
         const card = document.createElement('div');
         card.className = 'gear-card';
-
         const head = document.createElement('div');
         head.className = 'gear-head';
         head.innerHTML = `
-          <select class="gear-rank">${RANK_ORDER.map(r => `<option value="${r}" ${r===gear.rank?'selected':''}>Ranga ${r}</option>`).join('')}</select>
+          <span style="font-family:'Cinzel',serif; color:var(--eov);">${SLOT_LABELS[slotKey]}: ${gear.itemName} <span style="color:var(--text-faint); font-size:0.78rem;">(ranga ${gear.rank})</span></span>
           <select class="gear-ink">
             <option value="0" ${gear.ink===0?'selected':''}>Inkrustacja: brak</option>
             <option value="1" ${gear.ink===1?'selected':''}>Złoto ★</option>
@@ -1367,18 +1553,18 @@
             <option value="3" ${gear.ink===3?'selected':''}>Złoto ★★★</option>
           </select>
           <span class="gear-cap ${over?'over':''}">Potęga: <b>${usedPower}</b> / ${cap} &nbsp;·&nbsp; Sloty: <b>${slotCount}</b></span>
-          <button class="gear-remove" type="button">Usuń sprzęt</button>
+          <button class="gear-remove" type="button">Zdejmij</button>
         `;
         card.appendChild(head);
 
         const slotList = document.createElement('div');
         slotList.className = 'slot-list';
-        gear.slots.forEach((slot, idx) => {
-          const usedByOthers = gear.slots.filter((s,i) => i!==idx && s.modKey).map(s => s.modKey);
-          const row = document.createElement('div');
-          row.className = 'slot-row';
+        gear.drifSlots.forEach((slot, idx) => {
+          const usedByOthers = gear.drifSlots.filter((s,i) => i!==idx && s.modKey).map(s => s.modKey);
           const maxLvl = SIZES[slot.size].maxLevel;
           if(slot.level > maxLvl) slot.level = maxLvl;
+          const row = document.createElement('div');
+          row.className = 'slot-row';
           row.innerHTML = `
             <select class="slot-size">${elig.map(s => `<option value="${s}" ${s===slot.size?'selected':''}>${SIZES[s].label}</option>`).join('')}</select>
             <select class="slot-mod">
@@ -1393,26 +1579,24 @@
           row.querySelector('.slot-level').addEventListener('input', e => {
             let v = parseInt(e.target.value) || 1;
             v = Math.max(1, Math.min(maxLvl, v));
-            slot.level = v;
-            render();
+            slot.level = v; render();
           });
           slotList.appendChild(row);
         });
         card.appendChild(slotList);
 
-        head.querySelector('.gear-rank').addEventListener('change', e => { gear.rank = e.target.value; syncSlots(gear); render(); });
-        head.querySelector('.gear-ink').addEventListener('change', e => { gear.ink = parseInt(e.target.value); syncSlots(gear); render(); });
-        head.querySelector('.gear-remove').addEventListener('click', () => { gearItems = gearItems.filter(g => g.id !== gear.id); render(); });
+        head.querySelector('.gear-ink').addEventListener('change', e => { gear.ink = parseInt(e.target.value); syncDrifSlots(gear); render(); });
+        head.querySelector('.gear-remove').addEventListener('click', () => { delete equipped[slotKey]; render(); });
 
-        gearListEl.appendChild(card);
+        equippedDetailsEl.appendChild(card);
       });
     }
 
     function renderSummary(){
-      const totals = {}; // modKey -> {count, sum}
+      const totals = {};
       let totalPower = 0;
-      gearItems.forEach(gear => {
-        gear.slots.forEach(slot => {
+      Object.values(equipped).forEach(gear => {
+        gear.drifSlots.forEach(slot => {
           if(!slot.modKey) return;
           const mod = MOD_BY_KEY[slot.modKey];
           const val = drifValue(mod, slot.size, slot.level);
@@ -1424,7 +1608,7 @@
       });
       const keys = Object.keys(totals);
       if(keys.length === 0){
-        summaryEl.innerHTML = '<div class="drif-empty">Dodaj drify do sprzętów, żeby zobaczyć podsumowanie.</div>';
+        summaryEl.innerHTML = '<div class="drif-empty">Dodaj drify do założonych przedmiotów, żeby zobaczyć podsumowanie.</div>';
         return;
       }
       let html = `<div class="drif-total-power">Suma potęgi całego builda: <b>${totalPower}</b></div>`;
@@ -1445,8 +1629,10 @@
       summaryEl.innerHTML = html;
     }
 
+    function render(){ renderDoll(); renderEquippedDetails(); renderSummary(); }
     render();
   })();
+
 
   // ---------- przycisk "do góry" ----------
   (function(){
