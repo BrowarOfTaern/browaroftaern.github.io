@@ -322,6 +322,62 @@
 
   footer{ padding: 32px 0; text-align:center; color: var(--text-faint); font-size: 0.78rem; }
 
+  /* ---------- symulator drifów ---------- */
+  .gear-card{
+    background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
+    border: 1px solid var(--border-lit); border-radius: var(--radius);
+    padding: 18px; margin-bottom: 16px;
+  }
+  .gear-head{
+    display:flex; flex-wrap:wrap; align-items:center; gap: 12px;
+    padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px dashed var(--border);
+  }
+  .gear-head select{
+    background: var(--stone); border: 1px solid var(--border-lit); color: var(--text);
+    border-radius: 4px; padding: 7px 8px; font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem;
+  }
+  .gear-cap{ font-size: 0.82rem; color: var(--text-dim); }
+  .gear-cap b{ color: var(--eov); font-family: 'Cinzel', serif; }
+  .gear-cap.over b{ color: var(--voe); }
+  .gear-remove{
+    margin-left: auto; background: none; border: 1px solid var(--voe-dim); color: var(--voe);
+    border-radius: 4px; padding: 6px 12px; font-size: 0.78rem; cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .gear-remove:hover{ background: var(--voe-dim); color: var(--text); }
+  .slot-list{ display:flex; flex-direction:column; gap: 10px; }
+  .slot-row{
+    display:flex; flex-wrap:wrap; align-items:center; gap: 10px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px;
+  }
+  .slot-row select{
+    background: var(--stone); border: 1px solid var(--border-lit); color: var(--text);
+    border-radius: 4px; padding: 6px 8px; font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem;
+  }
+  .slot-row select.slot-mod{ min-width: 220px; flex: 1 1 220px; }
+  .slot-row input.slot-level{
+    width: 56px; background: var(--stone); border: 1px solid var(--border-lit); color: var(--text);
+    border-radius: 4px; padding: 6px 6px; font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; text-align:center;
+  }
+  .slot-readout{ font-size: 0.8rem; color: var(--eov); font-family: 'IBM Plex Mono', monospace; margin-left: auto; }
+  .slot-warn{ font-size: 0.72rem; color: var(--voe); width: 100%; }
+  .drif-summary{
+    margin-top: 30px; border: 1px solid var(--border-lit); border-radius: var(--radius);
+    background: var(--bg-3); padding: 22px;
+  }
+  .drif-summary h3{ font-family:'Cinzel', serif; font-size: 1.1rem; color: var(--eov); margin-bottom: 16px; }
+  .drif-total-power{ font-size: 0.85rem; color: var(--text-dim); margin-bottom: 16px; }
+  .drif-total-power b{ color: var(--eov); }
+  .mod-table{ width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .mod-table th{ text-align:left; color: var(--text-faint); text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.06em; padding: 6px 8px; border-bottom: 1px solid var(--border-lit); }
+  .mod-table td{ padding: 8px; border-bottom: 1px solid var(--border); }
+  .mod-table tr:last-child td{ border-bottom: none; }
+  .mod-table .mod-name{ font-family:'Cinzel', serif; }
+  .mod-table .mod-penalty{ color: var(--voe); }
+  .mod-table .mod-effective{ color: var(--eov); font-weight: 600; }
+  .drif-empty{ color: var(--text-faint); font-size: 0.85rem; text-align:center; padding: 20px; }
+  .drif-note{ font-size: 0.75rem; color: var(--text-faint); margin-top: 16px; line-height: 1.6; }
+
   /* ---------- mini-gra: Beczka Runner ---------- */
   .game-wrap{
     position: relative;
@@ -376,6 +432,7 @@
     </div>
     <nav class="navlinks">
       <a href="#kalkulator">Kalkulator</a>
+      <a href="#drify">Drify</a>
       <a href="#encyklopedia">Encyklopedia</a>
       <a href="#gra">Gra</a>
     </nav>
@@ -457,6 +514,26 @@
       <ol class="order-list" id="orderList"></ol>
 
       <div class="leftover" id="leftover"></div>
+    </div>
+  </div>
+</section>
+
+<section id="drify">
+  <div class="wrap">
+    <div class="eyebrow">Narzędzie gildii</div>
+    <h2 class="section-title">Symulator Drifów</h2>
+    <p class="section-desc">Dodaj sprzęty, wybierz rangę i poziom inkrustacji (to razem wyznacza pojemność i liczbę slotów), a potem dobierz drify. Na dole zobaczysz zsumowane bonusy z całego builda — z automatycznie naliczaną karą za powtarzające się modyfikatory.</p>
+
+    <button class="btn primary" id="addGearBtn">+ Dodaj sprzęt</button>
+
+    <div id="gearList" style="margin-top: 22px;"></div>
+
+    <div class="drif-summary">
+      <h3>Podsumowanie buildu</h3>
+      <div id="drifSummaryBody"></div>
+      <div class="drif-note">
+        Uwaga: pojemność i liczba slotów dla rangi IX są oszacowane na podstawie wzoru widocznego w pozostałych rangach (WikiBR nie pokazuje bezpośredniego przykładu przedmiotu tej rangi). Drify z obrażeniami żywiołowymi (Kalh/Unn/Val) oraz Err działają wyłącznie w broniach i tylko jeden modyfikator żywiołowy na broń — to narzędzie tego nie wymusza automatycznie, upilnuj sam przy realnym osadzaniu. Kara za powtórzenia liczona jest łącznie dla całego builda (wszystkie dodane sprzęty razem). Dla Arcydrifów na poziomach 19-21 wartości % mogą się nieznacznie różnić od WikiBR (rozjazd wyszedł przy weryfikacji tabeli źródłowej) — przy bardzo wysokopoziomowych Arcydrifach warto dla pewności zerknąć na wikibr.pl/index.php/Drify.
+      </div>
     </div>
   </div>
 </section>
@@ -1166,6 +1243,209 @@
 
     resizeCanvas();
     draw();
+  })();
+
+  // ---------- symulator drifów ----------
+  (function(){
+    const RANK_ORDER = ['II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+    const RANK_DATA = {
+      II:{cap:4,slots:1}, III:{cap:4,slots:1},
+      IV:{cap:8,slots:2}, V:{cap:10,slots:2}, VI:{cap:12,slots:2},
+      VII:{cap:15,slots:3}, VIII:{cap:18,slots:3}, IX:{cap:21,slots:3},
+      X:{cap:24,slots:3}, XI:{cap:28,slots:3}, XII:{cap:32,slots:3}
+    };
+    const RANK_NUM = {II:2,III:3,IV:4,V:5,VI:6,VII:7,VIII:8,IX:9,X:10,XI:11,XII:12};
+    const SIZES = {
+      sub:{label:'Subdrif', mult:1, maxLevel:6, minRankNum:1},
+      bi:{label:'Bidrif', mult:2, maxLevel:11, minRankNum:4},
+      magni:{label:'Magnidrif', mult:4, maxLevel:16, minRankNum:7},
+      arcy:{label:'Arcydrif', mult:6, maxLevel:21, minRankNum:10}
+    };
+    const MODIFIERS = [
+      {key:'amad', name:'Zużycie kondycji (redukcja)', growth:1, group:2},
+      {key:'ann', name:'Regeneracja many', growth:0.15, group:1},
+      {key:'eras', name:'Regeneracja kondycji', growth:0.15, group:1},
+      {key:'err', name:'Wyssanie many (tylko broń)', growth:0.5, group:3},
+      {key:'lun', name:'Odporność na efekty krępujące i ukazanie', growth:0.5, group:1},
+      {key:'verd', name:'Szansa na odczarowanie', growth:0.5, group:2},
+      {key:'von', name:'Zużycie many (redukcja)', growth:1, group:2},
+      {key:'elen', name:'Podwójne losowanie obrony', growth:1, group:2},
+      {key:'grod', name:'Odporność na trafienie krytyczne', growth:0.5, group:2},
+      {key:'grud', name:'Obrona mentalna', growth:1.5, group:1},
+      {key:'tall', name:'Obrona wręcz', growth:1.5, group:1},
+      {key:'tovi', name:'Obrona dystansowa', growth:1.5, group:1},
+      {key:'alorn', name:'Redukcja otrzymanych obrażeń', growth:0.5, group:4},
+      {key:'faln', name:'Redukcja obrażeń krytycznych', growth:1, group:1},
+      {key:'farid', name:'Szansa na unik', growth:0.5, group:4},
+      {key:'holm', name:'Szansa na zredukowanie obrażeń', growth:0.5, group:3},
+      {key:'iori', name:'Redukcja obrażeń biernych', growth:1, group:3},
+      {key:'jorn', name:'Redukcja obrażeń z ataków zabierających % PŻ', growth:1, group:1},
+      {key:'abaf', name:'Modyfikator obrażeń magicznych', growth:0.5, group:3},
+      {key:'astah', name:'Modyfikator obrażeń fizycznych', growth:0.5, group:3},
+      {key:'band', name:'Szansa na trafienie krytyczne', growth:0.5, group:4},
+      {key:'kalh', name:'Dodatkowe obrażenia od zimna (tylko broń)', growth:0.35, group:3},
+      {key:'teld', name:'Szansa na podwójny atak', growth:0.5, group:4},
+      {key:'unn', name:'Dodatkowe obrażenia od ognia (tylko broń)', growth:0.35, group:3},
+      {key:'val', name:'Dodatkowe obrażenia od energii (tylko broń)', growth:0.35, group:3},
+      {key:'dur', name:'Podwójne losowanie trafienia', growth:0.5, group:2},
+      {key:'ling', name:'Modyfikator trafień dystansowych', growth:1, group:3},
+      {key:'lorb', name:'Przełamanie odporności na uroki', growth:1, group:2},
+      {key:'oda', name:'Modyfikator trafień mentalnych', growth:1, group:3},
+      {key:'ulk', name:'Modyfikator trafień wręcz', growth:1, group:3},
+    ];
+    const MOD_BY_KEY = Object.fromEntries(MODIFIERS.map(m => [m.key, m]));
+    const POWER_TABLE = { 1:[1,2,3,4], 2:[2,4,6,8], 3:[3,6,9,12], 4:[4,8,12,16] };
+    const PENALTY_TABLE = {4:0.95,5:0.87,6:0.80,7:0.74,8:0.69,9:0.64,10:0.59,11:0.54,12:0.50};
+
+    function bracket(level){ return level<=6?0:level<=11?1:level<=16?2:3; }
+    function drifValue(mod, size, level){ return mod.growth * (SIZES[size].mult + level - 1); }
+    function drifPower(mod, level){ return POWER_TABLE[mod.group][bracket(level)]; }
+    function maxSlotsFor(rankKey, inkrustacja){
+      const base = RANK_DATA[rankKey];
+      let slots = base.slots;
+      let cap = base.cap;
+      if(inkrustacja >= 1){ cap += 1; if(rankKey === 'II' || rankKey === 'III') slots += 1; }
+      if(inkrustacja >= 2){ cap += 1; } // razem +2 na 2★ (zgodnie z tabelą bonusów inkrustacji)
+      if(inkrustacja >= 3){ cap += 2; } // razem +4 na 3★
+      return { cap, slots };
+    }
+    function eligibleSizes(rankKey){
+      const rn = RANK_NUM[rankKey];
+      return Object.keys(SIZES).filter(s => rn >= SIZES[s].minRankNum);
+    }
+
+    let gearItems = [];
+    let nextGearId = 1;
+
+    function addGear(){
+      gearItems.push({ id: nextGearId++, rank: 'VII', ink: 0, slots: [] });
+      syncSlots(gearItems[gearItems.length-1]);
+      render();
+    }
+    function syncSlots(gear){
+      const { slots: slotCount } = maxSlotsFor(gear.rank, gear.ink);
+      const elig = eligibleSizes(gear.rank);
+      while(gear.slots.length < slotCount){
+        gear.slots.push({ id: Math.random().toString(36).slice(2), size: elig[0] || 'sub', modKey: '', level: 1 });
+      }
+      while(gear.slots.length > slotCount){ gear.slots.pop(); }
+      gear.slots.forEach(s => { if(!elig.includes(s.size)) s.size = elig[0] || 'sub'; });
+    }
+
+    const gearListEl = document.getElementById('gearList');
+    const summaryEl = document.getElementById('drifSummaryBody');
+    document.getElementById('addGearBtn').addEventListener('click', addGear);
+
+    function render(){
+      renderGearList();
+      renderSummary();
+    }
+
+    function renderGearList(){
+      if(gearItems.length === 0){
+        gearListEl.innerHTML = '<div class="drif-empty">Nie dodano jeszcze żadnego sprzętu. Kliknij "+ Dodaj sprzęt", żeby zacząć budować.</div>';
+        return;
+      }
+      gearListEl.innerHTML = '';
+      gearItems.forEach(gear => {
+        const { cap, slots: slotCount } = maxSlotsFor(gear.rank, gear.ink);
+        const usedPower = gear.slots.reduce((sum,s) => s.modKey ? sum + drifPower(MOD_BY_KEY[s.modKey], s.level) : sum, 0);
+        const over = usedPower > cap;
+        const elig = eligibleSizes(gear.rank);
+
+        const card = document.createElement('div');
+        card.className = 'gear-card';
+
+        const head = document.createElement('div');
+        head.className = 'gear-head';
+        head.innerHTML = `
+          <select class="gear-rank">${RANK_ORDER.map(r => `<option value="${r}" ${r===gear.rank?'selected':''}>Ranga ${r}</option>`).join('')}</select>
+          <select class="gear-ink">
+            <option value="0" ${gear.ink===0?'selected':''}>Inkrustacja: brak</option>
+            <option value="1" ${gear.ink===1?'selected':''}>Złoto ★</option>
+            <option value="2" ${gear.ink===2?'selected':''}>Złoto ★★</option>
+            <option value="3" ${gear.ink===3?'selected':''}>Złoto ★★★</option>
+          </select>
+          <span class="gear-cap ${over?'over':''}">Potęga: <b>${usedPower}</b> / ${cap} &nbsp;·&nbsp; Sloty: <b>${slotCount}</b></span>
+          <button class="gear-remove" type="button">Usuń sprzęt</button>
+        `;
+        card.appendChild(head);
+
+        const slotList = document.createElement('div');
+        slotList.className = 'slot-list';
+        gear.slots.forEach((slot, idx) => {
+          const usedByOthers = gear.slots.filter((s,i) => i!==idx && s.modKey).map(s => s.modKey);
+          const row = document.createElement('div');
+          row.className = 'slot-row';
+          const maxLvl = SIZES[slot.size].maxLevel;
+          if(slot.level > maxLvl) slot.level = maxLvl;
+          row.innerHTML = `
+            <select class="slot-size">${elig.map(s => `<option value="${s}" ${s===slot.size?'selected':''}>${SIZES[s].label}</option>`).join('')}</select>
+            <select class="slot-mod">
+              <option value="">— wybierz modyfikator —</option>
+              ${MODIFIERS.map(m => `<option value="${m.key}" ${m.key===slot.modKey?'selected':''} ${usedByOthers.includes(m.key)?'disabled':''}>${m.name}</option>`).join('')}
+            </select>
+            <input type="number" class="slot-level" min="1" max="${maxLvl}" value="${slot.level}">
+            <span class="slot-readout">${slot.modKey ? `+${drifValue(MOD_BY_KEY[slot.modKey], slot.size, slot.level).toFixed(2)}% · potęga ${drifPower(MOD_BY_KEY[slot.modKey], slot.level)}` : `poziom max ${maxLvl}`}</span>
+          `;
+          row.querySelector('.slot-size').addEventListener('change', e => { slot.size = e.target.value; if(slot.level > SIZES[slot.size].maxLevel) slot.level = SIZES[slot.size].maxLevel; render(); });
+          row.querySelector('.slot-mod').addEventListener('change', e => { slot.modKey = e.target.value; render(); });
+          row.querySelector('.slot-level').addEventListener('input', e => {
+            let v = parseInt(e.target.value) || 1;
+            v = Math.max(1, Math.min(maxLvl, v));
+            slot.level = v;
+            render();
+          });
+          slotList.appendChild(row);
+        });
+        card.appendChild(slotList);
+
+        head.querySelector('.gear-rank').addEventListener('change', e => { gear.rank = e.target.value; syncSlots(gear); render(); });
+        head.querySelector('.gear-ink').addEventListener('change', e => { gear.ink = parseInt(e.target.value); syncSlots(gear); render(); });
+        head.querySelector('.gear-remove').addEventListener('click', () => { gearItems = gearItems.filter(g => g.id !== gear.id); render(); });
+
+        gearListEl.appendChild(card);
+      });
+    }
+
+    function renderSummary(){
+      const totals = {}; // modKey -> {count, sum}
+      let totalPower = 0;
+      gearItems.forEach(gear => {
+        gear.slots.forEach(slot => {
+          if(!slot.modKey) return;
+          const mod = MOD_BY_KEY[slot.modKey];
+          const val = drifValue(mod, slot.size, slot.level);
+          totalPower += drifPower(mod, slot.level);
+          if(!totals[slot.modKey]) totals[slot.modKey] = { count:0, sum:0 };
+          totals[slot.modKey].count++;
+          totals[slot.modKey].sum += val;
+        });
+      });
+      const keys = Object.keys(totals);
+      if(keys.length === 0){
+        summaryEl.innerHTML = '<div class="drif-empty">Dodaj drify do sprzętów, żeby zobaczyć podsumowanie.</div>';
+        return;
+      }
+      let html = `<div class="drif-total-power">Suma potęgi całego builda: <b>${totalPower}</b></div>`;
+      html += `<table class="mod-table"><thead><tr><th>Modyfikator</th><th>Ilość</th><th>Suma nominalna</th><th>Kara</th><th>Efektywnie</th></tr></thead><tbody>`;
+      keys.sort((a,b) => MOD_BY_KEY[a].name.localeCompare(MOD_BY_KEY[b].name)).forEach(key => {
+        const t = totals[key];
+        const penaltyMult = t.count >= 4 ? PENALTY_TABLE[Math.min(t.count,12)] : 1;
+        const effective = t.sum * penaltyMult;
+        html += `<tr>
+          <td class="mod-name">${MOD_BY_KEY[key].name}</td>
+          <td>${t.count}×</td>
+          <td>${t.sum.toFixed(2)}%</td>
+          <td class="${penaltyMult<1?'mod-penalty':''}">${penaltyMult<1 ? Math.round(penaltyMult*100)+'% efektu' : '—'}</td>
+          <td class="mod-effective">${effective.toFixed(2)}%</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+      summaryEl.innerHTML = html;
+    }
+
+    render();
   })();
 
   // ---------- przycisk "do góry" ----------
