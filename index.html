@@ -207,6 +207,7 @@
     color: #1a1409; border-color: #8a6a1a;
   }
   .btn.primary:hover{ filter: brightness(1.08); }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; filter:none; }
   .btn.ghost:hover{ border-color: var(--vii); color: var(--vii); }
 
   /* ---------- results ---------- */
@@ -405,6 +406,17 @@
     font-family:'IBM Plex Mono', monospace;
   }
 
+  .drif-capacity-info{
+    font-size:0.88rem; color: var(--text-dim); margin-bottom:12px;
+    padding:8px 10px; background: var(--bg); border:1px solid var(--border-lit); border-radius:4px;
+  }
+  .drif-capacity-info b{ color: var(--eov); font-family:'Cinzel', serif; }
+  .drif-capacity-info b.over{ color: var(--voe); }
+  .drif-capacity-warn{
+    font-size:0.8rem; color: var(--voe); margin-top:8px; padding:8px 10px;
+    background: rgba(201,67,47,0.1); border:1px solid var(--voe-dim); border-radius:4px;
+  }
+  .drif-capacity-warn.hidden{ display:none; }
   .drif-size-toggle{ display:flex; gap:8px; margin-bottom:12px; }
   .drif-size-toggle button{
     flex:1; background: var(--stone); border:1px solid var(--border-lit); color: var(--text-dim);
@@ -681,6 +693,7 @@
         <span id="drifPickerTitle">Wybierz drif</span>
         <button class="item-picker-close" id="drifPickerClose" type="button">&times;</button>
       </div>
+      <div class="drif-capacity-info" id="drifCapacityInfo"></div>
       <div class="drif-size-toggle" id="drifSizeToggle"></div>
       <input type="text" class="item-search" id="drifSearch" placeholder="Szukaj modyfikatora...">
       <div class="item-picker-list" id="drifPickerList"></div>
@@ -688,6 +701,7 @@
         <label>Poziom: <input type="number" id="drifLevelInput" min="1" value="1"></label>
         <button class="btn primary" id="drifConfirmBtn" type="button">Zatwierdź</button>
       </div>
+      <div class="drif-capacity-warn hidden" id="drifCapacityWarn">Przekracza pojemność przedmiotu — zmniejsz poziom albo wybierz mniejszy drif.</div>
       <button class="btn ghost" id="drifRemoveBtn" style="margin-top:10px;">Usuń drif</button>
     </div>
 
@@ -1577,6 +1591,8 @@
     const drifConfirmBtn = document.getElementById('drifConfirmBtn');
     const drifRemoveBtn = document.getElementById('drifRemoveBtn');
     const drifClose = document.getElementById('drifPickerClose');
+    const drifCapacityInfo = document.getElementById('drifCapacityInfo');
+    const drifCapacityWarn = document.getElementById('drifCapacityWarn');
 
     function itemsForSlot(slotKey){
       const cats = SLOT_CATS[slotKey];
@@ -1654,10 +1670,24 @@
       renderDrifSizeToggle();
       renderDrifModList();
       renderDrifLevelRow();
+      renderDrifCapacity();
       drifPicker.classList.remove('hidden');
       drifPicker.scrollIntoView({ behavior:'smooth', block:'nearest' });
     }
     function closeDrifPicker(){ drifPicker.classList.add('hidden'); drifCtx = null; }
+
+    function renderDrifCapacity(){
+      const gear = equipped[drifCtx.slotKey];
+      const { cap } = maxSlotsFor(gear.rank, gear.inkTier, gear.inkLevel);
+      const otherPower = gear.drifSlots.reduce((sum,s,i) => (i!==drifCtx.idx && s.modKey) ? sum + drifPower(MOD_BY_KEY[s.modKey], s.level) : sum, 0);
+      const thisPower = drifCtx.modKey ? drifPower(MOD_BY_KEY[drifCtx.modKey], drifCtx.level) : 0;
+      const total = otherPower + thisPower;
+      const over = total > cap;
+      drifCapacityInfo.innerHTML = `Pojemność przedmiotu: <b class="${over?'over':''}">${total}</b> / ${cap}${drifCtx.modKey ? ` (ten drif: potęga ${thisPower})` : ''}`;
+      drifCapacityWarn.classList.toggle('hidden', !over);
+      drifConfirmBtn.disabled = over;
+      return !over;
+    }
 
     function renderDrifSizeToggle(){
       const gear = equipped[drifCtx.slotKey];
@@ -1671,7 +1701,7 @@
           drifCtx.size = b.dataset.size;
           const maxLvl = SIZES[drifCtx.size].maxLevel;
           if(drifCtx.level > maxLvl) drifCtx.level = maxLvl;
-          renderDrifSizeToggle(); renderDrifLevelRow(); renderDrifModList();
+          renderDrifSizeToggle(); renderDrifLevelRow(); renderDrifModList(); renderDrifCapacity();
         });
       });
     }
@@ -1698,6 +1728,7 @@
           drifCtx.modKey = el.dataset.key;
           renderDrifModList();
           renderDrifLevelRow();
+          renderDrifCapacity();
         });
       });
     }
@@ -1713,8 +1744,10 @@
       const maxLvl = SIZES[drifCtx.size].maxLevel;
       let v = parseInt(e.target.value) || 1;
       drifCtx.level = Math.max(1, Math.min(maxLvl, v));
+      renderDrifCapacity();
     });
     drifConfirmBtn.addEventListener('click', () => {
+      if(!renderDrifCapacity()) return;
       const gear = equipped[drifCtx.slotKey];
       gear.drifSlots[drifCtx.idx] = { id: gear.drifSlots[drifCtx.idx].id, size: drifCtx.size, modKey: drifCtx.modKey, level: drifCtx.level };
       closeDrifPicker();
