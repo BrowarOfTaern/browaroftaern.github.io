@@ -364,6 +364,46 @@
   .doll-caption{ text-align:center; font-size:0.56rem; color: var(--text-faint); line-height:1.25; }
   .doll-caption .cap-type{ text-transform:uppercase; letter-spacing:0.03em; white-space:nowrap; }
   .doll-caption .cap-item{ color: var(--text-dim); display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 76px; }
+  .cap-ink{ display:block; letter-spacing:1px; color: var(--eov); cursor:pointer; font-size:0.62rem; margin-top:1px; }
+  .cap-ink:hover{ filter: brightness(1.3); }
+
+  .doll-gems{ display:flex; gap:4px; justify-content:center; }
+  .doll-gem{
+    width:22px; height:22px; border-radius:50%; position:relative; flex-shrink:0;
+    background: radial-gradient(circle at 35% 30%, var(--bg-3), var(--bg));
+    border:1.5px dashed var(--border-lit); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: border-color .15s, transform .15s;
+  }
+  .doll-gem:hover{ border-color: var(--eov); transform: scale(1.12); }
+  .doll-gem.filled{ border-style:solid; border-color: var(--eov); background: radial-gradient(circle at 35% 30%, var(--bg-2), var(--bg-3)); }
+  .doll-gem img{ width:14px; height:14px; object-fit:contain; }
+  .doll-gem .gem-plus{ color: var(--text-faint); font-size:0.65rem; }
+  .doll-gem .gem-lvl{
+    position:absolute; bottom:-4px; right:-4px; background: var(--eov); color:#1a1409;
+    font-size:0.48rem; font-weight:700; border-radius:50%; width:12px; height:12px;
+    display:flex; align-items:center; justify-content:center; border:1px solid var(--bg-2);
+    font-family:'IBM Plex Mono', monospace;
+  }
+
+  .drif-size-toggle{ display:flex; gap:6px; margin-bottom:10px; }
+  .drif-size-toggle button{
+    flex:1; background: var(--stone); border:1px solid var(--border-lit); color: var(--text-dim);
+    border-radius:4px; padding:7px 4px; font-family:'IBM Plex Mono', monospace; font-size:0.78rem; cursor:pointer;
+  }
+  .drif-size-toggle button.active{ border-color: var(--eov); color: var(--eov); background: var(--bg-3); }
+  .drif-size-toggle button:disabled{ opacity:0.35; cursor:not-allowed; }
+  .item-option.mod-option{ display:flex; align-items:center; gap:8px; justify-content:flex-start; }
+  .item-option.mod-option img{ width:22px; height:22px; object-fit:contain; flex-shrink:0; }
+  .item-option.mod-option span.opt-name{ flex:1; }
+  .item-option.mod-option.selected{ border-color: var(--eov); background: var(--stone); }
+  .drif-level-row{ display:none; align-items:center; gap:12px; margin-top:10px; }
+  .drif-level-row.show{ display:flex; }
+  .drif-level-row label{ font-size:0.8rem; color: var(--text-dim); display:flex; align-items:center; gap:8px; }
+  .drif-level-row input{
+    width:64px; background: var(--bg); border:1px solid var(--border-lit); color: var(--text);
+    border-radius:4px; padding:6px 8px; font-family:'IBM Plex Mono', monospace; font-size:0.85rem; text-align:center;
+  }
 
   .item-picker{
     max-width: 480px; margin: 0 auto 26px; background: var(--bg-3);
@@ -617,7 +657,20 @@
       <button class="btn ghost" id="itemUnequipBtn" style="margin-top:10px;">Zdejmij przedmiot</button>
     </div>
 
-    <div id="equippedDetails"></div>
+    <div class="item-picker hidden" id="drifPicker">
+      <div class="item-picker-head">
+        <span id="drifPickerTitle">Wybierz drif</span>
+        <button class="item-picker-close" id="drifPickerClose" type="button">&times;</button>
+      </div>
+      <div class="drif-size-toggle" id="drifSizeToggle"></div>
+      <input type="text" class="item-search" id="drifSearch" placeholder="Szukaj modyfikatora...">
+      <div class="item-picker-list" id="drifPickerList"></div>
+      <div class="drif-level-row" id="drifLevelRow">
+        <label>Poziom: <input type="number" id="drifLevelInput" min="1" value="1"></label>
+        <button class="btn primary" id="drifConfirmBtn" type="button">Zatwierdź</button>
+      </div>
+      <button class="btn ghost" id="drifRemoveBtn" style="margin-top:10px;">Usuń drif</button>
+    </div>
 
     <div class="drif-summary">
       <h3>Podsumowanie buildu</h3>
@@ -1463,6 +1516,7 @@
 
     let equipped = {}; // slotKey -> { itemName, rank, ink, drifSlots:[...] }
     let activeSlot = null;
+    let drifCtx = null; // { slotKey, idx, size, modKey, level }
 
     const dollGrid = document.getElementById('dollGrid');
     const picker = document.getElementById('itemPicker');
@@ -1471,8 +1525,18 @@
     const pickerSearch = document.getElementById('itemSearch');
     const pickerClose = document.getElementById('itemPickerClose');
     const unequipBtn = document.getElementById('itemUnequipBtn');
-    const equippedDetailsEl = document.getElementById('equippedDetails');
     const summaryEl = document.getElementById('drifSummaryBody');
+
+    const drifPicker = document.getElementById('drifPicker');
+    const drifPickerTitle = document.getElementById('drifPickerTitle');
+    const drifSizeToggle = document.getElementById('drifSizeToggle');
+    const drifSearch = document.getElementById('drifSearch');
+    const drifPickerList = document.getElementById('drifPickerList');
+    const drifLevelRow = document.getElementById('drifLevelRow');
+    const drifLevelInput = document.getElementById('drifLevelInput');
+    const drifConfirmBtn = document.getElementById('drifConfirmBtn');
+    const drifRemoveBtn = document.getElementById('drifRemoveBtn');
+    const drifClose = document.getElementById('drifPickerClose');
 
     function itemsForSlot(slotKey){
       const cats = SLOT_CATS[slotKey];
@@ -1528,6 +1592,93 @@
       while(gear.drifSlots.length > slotCount) gear.drifSlots.pop();
       gear.drifSlots.forEach(s => { if(!elig.includes(s.size)) s.size = elig[0]||'sub'; });
     }
+    function cycleInk(slotKey){
+      const gear = equipped[slotKey];
+      gear.ink = (gear.ink + 1) % 4;
+      syncDrifSlots(gear);
+      render();
+    }
+
+    // ---------- panel wyboru drifa (klik w kamyczek) ----------
+    function openDrifPicker(slotKey, idx){
+      const gear = equipped[slotKey];
+      const slot = gear.drifSlots[idx];
+      const elig = eligibleSizes(gear.rank);
+      drifCtx = { slotKey, idx, size: slot.size || elig[0], modKey: slot.modKey || '', level: slot.level || 1 };
+      drifPickerTitle.textContent = `Drif — ${gear.itemName} (slot ${idx+1})`;
+      drifSearch.value = '';
+      drifRemoveBtn.style.display = slot.modKey ? 'block' : 'none';
+      renderDrifSizeToggle();
+      renderDrifModList();
+      renderDrifLevelRow();
+      drifPicker.classList.remove('hidden');
+      drifPicker.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    }
+    function closeDrifPicker(){ drifPicker.classList.add('hidden'); drifCtx = null; }
+
+    function renderDrifSizeToggle(){
+      const gear = equipped[drifCtx.slotKey];
+      const elig = eligibleSizes(gear.rank);
+      drifSizeToggle.innerHTML = Object.keys(SIZES).map(s => {
+        const enabled = elig.includes(s);
+        return `<button type="button" data-size="${s}" ${enabled?'':'disabled'} class="${s===drifCtx.size?'active':''}">${SIZES[s].label}</button>`;
+      }).join('');
+      drifSizeToggle.querySelectorAll('button').forEach(b => {
+        b.addEventListener('click', () => {
+          drifCtx.size = b.dataset.size;
+          const maxLvl = SIZES[drifCtx.size].maxLevel;
+          if(drifCtx.level > maxLvl) drifCtx.level = maxLvl;
+          renderDrifSizeToggle(); renderDrifLevelRow(); renderDrifModList();
+        });
+      });
+    }
+    function renderDrifModList(){
+      const gear = equipped[drifCtx.slotKey];
+      const usedByOthers = gear.drifSlots.filter((s,i) => i!==drifCtx.idx && s.modKey).map(s => s.modKey);
+      const q = drifSearch.value.trim().toLowerCase();
+      const list = MODIFIERS.filter(m => m.name.toLowerCase().includes(q));
+      drifPickerList.innerHTML = list.map(m => {
+        const disabled = usedByOthers.includes(m.key);
+        const selected = m.key === drifCtx.modKey;
+        return `<div class="item-option mod-option ${selected?'selected':''}" data-key="${m.key}" style="${disabled?'opacity:.35;pointer-events:none;':''}">
+          <img src="drify/${m.key}.png" alt="">
+          <span class="opt-name">${m.name}</span>
+        </div>`;
+      }).join('');
+      drifPickerList.querySelectorAll('.mod-option').forEach(el => {
+        el.addEventListener('click', () => {
+          drifCtx.modKey = el.dataset.key;
+          renderDrifModList();
+          renderDrifLevelRow();
+        });
+      });
+    }
+    function renderDrifLevelRow(){
+      if(!drifCtx.modKey){ drifLevelRow.classList.remove('show'); return; }
+      const maxLvl = SIZES[drifCtx.size].maxLevel;
+      drifLevelInput.max = maxLvl;
+      drifLevelInput.value = Math.min(drifCtx.level, maxLvl);
+      drifLevelRow.classList.add('show');
+    }
+    drifSearch.addEventListener('input', renderDrifModList);
+    drifLevelInput.addEventListener('input', e => {
+      const maxLvl = SIZES[drifCtx.size].maxLevel;
+      let v = parseInt(e.target.value) || 1;
+      drifCtx.level = Math.max(1, Math.min(maxLvl, v));
+    });
+    drifConfirmBtn.addEventListener('click', () => {
+      const gear = equipped[drifCtx.slotKey];
+      gear.drifSlots[drifCtx.idx] = { id: gear.drifSlots[drifCtx.idx].id, size: drifCtx.size, modKey: drifCtx.modKey, level: drifCtx.level };
+      closeDrifPicker();
+      render();
+    });
+    drifRemoveBtn.addEventListener('click', () => {
+      const gear = equipped[drifCtx.slotKey];
+      gear.drifSlots[drifCtx.idx] = { id: gear.drifSlots[drifCtx.idx].id, size: drifCtx.size, modKey:'', level:1 };
+      closeDrifPicker();
+      render();
+    });
+    drifClose.addEventListener('click', closeDrifPicker);
 
     function renderDoll(){
       dollGrid.querySelectorAll('.doll-cell').forEach(el => el.remove());
@@ -1542,89 +1693,50 @@
         cell.className = 'doll-cell' + (isTopHalf ? ' cap-above' : '');
         cell.style.left = leftPct + '%';
         cell.style.top = topPct + '%';
+
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'doll-slot' + (gear ? ' filled' : '');
         btn.textContent = gear ? gear.rank : '+';
-        btn.title = gear ? gear.itemName : ('Dodaj: ' + SLOT_LABELS[slotKey]);
+        if(gear){
+          const { cap, slots: slotCount } = maxSlotsFor(gear.rank, gear.ink);
+          const usedPower = gear.drifSlots.reduce((sum,s) => s.modKey ? sum + drifPower(MOD_BY_KEY[s.modKey], s.level) : sum, 0);
+          btn.title = `${gear.itemName} — ranga ${gear.rank} — potęga ${usedPower}/${cap} — sloty ${slotCount}`;
+        } else {
+          btn.title = 'Dodaj: ' + SLOT_LABELS[slotKey];
+        }
         btn.addEventListener('click', () => openPicker(slotKey));
+        cell.appendChild(btn);
+
+        if(gear){
+          const gemsWrap = document.createElement('div');
+          gemsWrap.className = 'doll-gems';
+          gear.drifSlots.forEach((slot, idx) => {
+            const gem = document.createElement('button');
+            gem.type = 'button';
+            gem.className = 'doll-gem' + (slot.modKey ? ' filled' : '');
+            if(slot.modKey){
+              gem.innerHTML = `<img src="drify/${slot.modKey}.png" alt=""><span class="gem-lvl">${slot.level}</span>`;
+              gem.title = `${MOD_BY_KEY[slot.modKey].name} · ${SIZES[slot.size].label} · poz. ${slot.level} · +${drifValue(MOD_BY_KEY[slot.modKey], slot.size, slot.level).toFixed(2)}%`;
+            } else {
+              gem.innerHTML = `<span class="gem-plus">+</span>`;
+              gem.title = 'Dodaj drif';
+            }
+            gem.addEventListener('click', (e) => { e.stopPropagation(); openDrifPicker(slotKey, idx); });
+            gemsWrap.appendChild(gem);
+          });
+          cell.appendChild(gemsWrap);
+        }
+
         const caption = document.createElement('div');
         caption.className = 'doll-caption';
-        caption.innerHTML = `<span class="cap-type">${SLOT_LABELS[slotKey]}</span>${gear ? `<span class="cap-item">${gear.itemName}</span>` : ''}`;
-        cell.appendChild(btn);
+        caption.innerHTML = `<span class="cap-type">${SLOT_LABELS[slotKey]}</span>${gear ? `<span class="cap-item">${gear.itemName}</span><span class="cap-ink" title="Kliknij, aby zmienić poziom inkrustacji">${'★'.repeat(gear.ink)}${'☆'.repeat(3-gear.ink)}</span>` : ''}`;
+        if(gear){
+          caption.querySelector('.cap-ink').addEventListener('click', (e) => { e.stopPropagation(); cycleInk(slotKey); });
+        }
         cell.appendChild(caption);
+
         dollGrid.appendChild(cell);
-      });
-    }
-
-    function renderEquippedDetails(){
-      const filled = SLOT_ORDER.filter(k => equipped[k]);
-      if(filled.length === 0){
-        equippedDetailsEl.innerHTML = '<div class="drif-empty">Kliknij kółko na figurce, żeby założyć pierwszy przedmiot.</div>';
-        return;
-      }
-      equippedDetailsEl.innerHTML = '';
-      filled.forEach(slotKey => {
-        const gear = equipped[slotKey];
-        const { cap, slots: slotCount } = maxSlotsFor(gear.rank, gear.ink);
-        const usedPower = gear.drifSlots.reduce((sum,s) => s.modKey ? sum + drifPower(MOD_BY_KEY[s.modKey], s.level) : sum, 0);
-        const over = usedPower > cap;
-        const elig = eligibleSizes(gear.rank);
-
-        const card = document.createElement('div');
-        card.className = 'gear-card';
-        const head = document.createElement('div');
-        head.className = 'gear-head';
-        head.innerHTML = `
-          <span style="font-family:'Cinzel',serif; color:var(--eov);">${SLOT_LABELS[slotKey]}: ${gear.itemName} <span style="color:var(--text-faint); font-size:0.78rem;">(ranga ${gear.rank})</span></span>
-          <select class="gear-ink">
-            <option value="0" ${gear.ink===0?'selected':''}>Inkrustacja: brak</option>
-            <option value="1" ${gear.ink===1?'selected':''}>Złoto ★</option>
-            <option value="2" ${gear.ink===2?'selected':''}>Złoto ★★</option>
-            <option value="3" ${gear.ink===3?'selected':''}>Złoto ★★★</option>
-          </select>
-          <span class="gear-cap ${over?'over':''}">Potęga: <b>${usedPower}</b> / ${cap} &nbsp;·&nbsp; Sloty: <b>${slotCount}</b></span>
-          <button class="gear-remove" type="button">Zdejmij</button>
-        `;
-        card.appendChild(head);
-
-        const slotList = document.createElement('div');
-        slotList.className = 'slot-list';
-        gear.drifSlots.forEach((slot, idx) => {
-          const usedByOthers = gear.drifSlots.filter((s,i) => i!==idx && s.modKey).map(s => s.modKey);
-          const maxLvl = SIZES[slot.size].maxLevel;
-          if(slot.level > maxLvl) slot.level = maxLvl;
-          const row = document.createElement('div');
-          row.className = 'slot-row';
-          const sizeBadge = { sub:'S', bi:'B', magni:'M', arcy:'A' }[slot.size];
-          const iconHtml = slot.modKey
-            ? `<div class="mod-icon-wrap"><img class="mod-icon" src="drify/${slot.modKey}.png" alt="${MOD_BY_KEY[slot.modKey].name}"><span class="mod-size-badge">${sizeBadge}</span></div>`
-            : `<div class="mod-icon-wrap mod-icon-empty"></div>`;
-          row.innerHTML = `
-            ${iconHtml}
-            <select class="slot-size">${elig.map(s => `<option value="${s}" ${s===slot.size?'selected':''}>${SIZES[s].label}</option>`).join('')}</select>
-            <select class="slot-mod">
-              <option value="">— wybierz modyfikator —</option>
-              ${MODIFIERS.map(m => `<option value="${m.key}" ${m.key===slot.modKey?'selected':''} ${usedByOthers.includes(m.key)?'disabled':''}>${m.name}</option>`).join('')}
-            </select>
-            <input type="number" class="slot-level" min="1" max="${maxLvl}" value="${slot.level}">
-            <span class="slot-readout">${slot.modKey ? `+${drifValue(MOD_BY_KEY[slot.modKey], slot.size, slot.level).toFixed(2)}% · potęga ${drifPower(MOD_BY_KEY[slot.modKey], slot.level)}` : `poziom max ${maxLvl}`}</span>
-          `;
-          row.querySelector('.slot-size').addEventListener('change', e => { slot.size = e.target.value; if(slot.level > SIZES[slot.size].maxLevel) slot.level = SIZES[slot.size].maxLevel; render(); });
-          row.querySelector('.slot-mod').addEventListener('change', e => { slot.modKey = e.target.value; render(); });
-          row.querySelector('.slot-level').addEventListener('input', e => {
-            let v = parseInt(e.target.value) || 1;
-            v = Math.max(1, Math.min(maxLvl, v));
-            slot.level = v; render();
-          });
-          slotList.appendChild(row);
-        });
-        card.appendChild(slotList);
-
-        head.querySelector('.gear-ink').addEventListener('change', e => { gear.ink = parseInt(e.target.value); syncDrifSlots(gear); render(); });
-        head.querySelector('.gear-remove').addEventListener('click', () => { delete equipped[slotKey]; render(); });
-
-        equippedDetailsEl.appendChild(card);
       });
     }
 
@@ -1665,7 +1777,7 @@
       summaryEl.innerHTML = html;
     }
 
-    function render(){ renderDoll(); renderEquippedDetails(); renderSummary(); }
+    function render(){ renderDoll(); renderSummary(); }
     render();
   })();
 
