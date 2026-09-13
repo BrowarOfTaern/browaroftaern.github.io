@@ -344,26 +344,35 @@
   }
   .doll-center-crest svg{ width:100%; height:100%; }
   .doll-cell{
-    position:absolute; display:flex; flex-direction:column; align-items:center; gap:6px;
+    position:absolute; display:flex; flex-direction:column; align-items:center; gap:2px;
     width: 108px; transform: translate(-50%,-50%);
   }
   .doll-cell.cap-above{ flex-direction: column-reverse; }
+  .doll-slot-wrap{ position:relative; flex-shrink:0; }
   .doll-slot{
-    width:70px; height:70px; border-radius:50%;
+    width:76px; height:76px; border-radius:50%;
     background: radial-gradient(circle at 35% 30%, var(--bg-3), var(--bg));
     border:2px dashed var(--border-lit); color: var(--text-faint);
     display:flex; align-items:center; justify-content:center;
     cursor:pointer; font-family:'Cinzel', serif; font-size:1.1rem;
-    transition: border-color .15s, transform .15s; flex-shrink:0;
+    transition: border-color .15s, transform .15s;
+    padding: 4px; text-align:center; line-height:1.05; overflow:hidden;
   }
-  .doll-slot:hover{ border-color: var(--eov); transform: scale(1.08); }
+  .doll-slot:hover{ border-color: var(--eov); transform: scale(1.06); }
   .doll-slot.filled{
-    border-style:solid; border-color: var(--eov); color: var(--eov);
+    border-style:solid; border-color: var(--eov); color: var(--text);
     background: radial-gradient(circle at 35% 30%, var(--bg-2), var(--bg-3));
+    font-family: 'IBM Plex Mono', monospace; font-weight:600;
+  }
+  .doll-slot .slot-item-name{ display:block; word-break:break-word; }
+  .doll-rank-badge{
+    position:absolute; top:-4px; right:-4px; background: var(--eov); color:#1a1409;
+    font-family:'Cinzel', serif; font-weight:700; font-size:0.62rem; border-radius:50%;
+    width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+    border:1.5px solid var(--bg-2);
   }
   .doll-caption{ text-align:center; font-size:0.74rem; color: var(--text-faint); line-height:1.3; }
   .doll-caption .cap-type{ text-transform:uppercase; letter-spacing:0.03em; white-space:nowrap; }
-  .doll-caption .cap-item{ color: var(--text-dim); display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 108px; font-size:0.78rem; }
   .cap-ink{ display:flex; justify-content:center; gap:1px; letter-spacing:1px; cursor:pointer; font-size:0.9rem; margin-top:2px; line-height:1; }
   .cap-ink .ink-tier-btn{
     color: var(--text-faint); font-family:'Cinzel', serif; font-weight:700; font-size:0.66rem;
@@ -371,21 +380,24 @@
   }
   .cap-ink:hover{ filter: brightness(1.3); }
 
-  .doll-gems{ display:flex; gap:6px; justify-content:center; }
+  .doll-gems{
+    position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+    display:flex; gap:2px; justify-content:center; z-index:2;
+  }
   .doll-gem{
-    width:30px; height:30px; border-radius:50%; position:relative; flex-shrink:0;
+    width:26px; height:26px; border-radius:50%; position:relative; flex-shrink:0;
     background: radial-gradient(circle at 35% 30%, var(--bg-3), var(--bg));
-    border:1.5px dashed var(--border-lit); cursor:pointer;
-    display:flex; align-items:center; justify-content:center;
+    border:1.5px solid var(--bg-2); outline:1.5px dashed var(--border-lit); outline-offset:-1px;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
     transition: border-color .15s, transform .15s;
   }
-  .doll-gem:hover{ border-color: var(--eov); transform: scale(1.12); }
-  .doll-gem.filled{ border-style:solid; border-color: var(--eov); background: radial-gradient(circle at 35% 30%, var(--bg-2), var(--bg-3)); }
-  .doll-gem img{ width:19px; height:19px; object-fit:contain; }
-  .doll-gem .gem-plus{ color: var(--text-faint); font-size:0.85rem; }
+  .doll-gem:hover{ transform: scale(1.15); }
+  .doll-gem.filled{ outline-style:solid; outline-color: var(--eov); background: radial-gradient(circle at 35% 30%, var(--bg-2), var(--bg-3)); }
+  .doll-gem img{ width:17px; height:17px; object-fit:contain; }
+  .doll-gem .gem-plus{ color: var(--text-faint); font-size:0.78rem; }
   .doll-gem .gem-lvl{
     position:absolute; bottom:-4px; right:-4px; background: var(--eov); color:#1a1409;
-    font-size:0.58rem; font-weight:700; border-radius:50%; width:16px; height:16px;
+    font-size:0.52rem; font-weight:700; border-radius:50%; width:14px; height:14px;
     display:flex; align-items:center; justify-content:center; border:1px solid var(--bg-2);
     font-family:'IBM Plex Mono', monospace;
   }
@@ -680,7 +692,7 @@
       <h3>Podsumowanie buildu</h3>
       <div id="drifSummaryBody"></div>
       <div class="drif-note">
-        Baza przedmiotów to wybór realnych rarów z WikiBR (bossowie z rang II-XII) — nie każdy przedmiot z gry jest tu ujęty, ale rangi i kategorie slotów są prawdziwe. Pojemność i liczba slotów na drify wyliczają się z rangi tak samo jak w grze. Drify z obrażeniami żywiołowymi (Kalh/Unn/Val) oraz Err działają wyłącznie w broniach i tylko jeden modyfikator żywiołowy na broń — to narzędzie tego nie wymusza automatycznie, upilnuj sam przy realnym osadzaniu. Kara za powtórzenia liczona jest łącznie dla całego builda. Dla Arcydrifów na poziomach 19-21 wartości % mogą się nieznacznie różnić od WikiBR (rozjazd wyszedł przy weryfikacji tabeli źródłowej).
+        Baza przedmiotów to wybór realnych rarów z WikiBR (bossowie z rang II-XII) — nie każdy przedmiot z gry jest tu ujęty, ale rangi i kategorie slotów są prawdziwe. Pojemność i liczba slotów na drify wyliczają się z rangi tak samo jak w grze. Drify z obrażeniami żywiołowymi (Kalh/Unn/Val) oraz Err są dostępne wyłącznie w slocie broni — narzędzie samo ich nie pokaże przy innych przedmiotach. Nie pilnuje za to limitu "jeden modyfikator żywiołowy na broń" — to zostaje po Twojej stronie. Kara za powtórzenia liczona jest łącznie dla całego builda. Dla Arcydrifów na poziomach 19-21 wartości % mogą się nieznacznie różnić od WikiBR (rozjazd wyszedł przy weryfikacji tabeli źródłowej).
       </div>
     </div>
   </div>
@@ -1413,7 +1425,7 @@
       {key:'amad', name:'Zużycie kondycji (redukcja)', growth:1, group:2},
       {key:'ann', name:'Regeneracja many', growth:0.15, group:1},
       {key:'eras', name:'Regeneracja kondycji', growth:0.15, group:1},
-      {key:'err', name:'Wyssanie many (tylko broń)', growth:0.5, group:3},
+      {key:'err', name:'Wyssanie many (tylko broń)', growth:0.5, group:3, weaponOnly:true},
       {key:'lun', name:'Odporność na efekty krępujące i ukazanie', growth:0.5, group:1},
       {key:'verd', name:'Szansa na odczarowanie', growth:0.5, group:2},
       {key:'von', name:'Zużycie many (redukcja)', growth:1, group:2},
@@ -1431,10 +1443,10 @@
       {key:'abaf', name:'Modyfikator obrażeń magicznych', growth:0.5, group:3},
       {key:'astah', name:'Modyfikator obrażeń fizycznych', growth:0.5, group:3},
       {key:'band', name:'Szansa na trafienie krytyczne', growth:0.5, group:4},
-      {key:'kalh', name:'Dodatkowe obrażenia od zimna (tylko broń)', growth:0.35, group:3},
+      {key:'kalh', name:'Dodatkowe obrażenia od zimna (tylko broń)', growth:0.35, group:3, weaponOnly:true},
       {key:'teld', name:'Szansa na podwójny atak', growth:0.5, group:4},
-      {key:'unn', name:'Dodatkowe obrażenia od ognia (tylko broń)', growth:0.35, group:3},
-      {key:'val', name:'Dodatkowe obrażenia od energii (tylko broń)', growth:0.35, group:3},
+      {key:'unn', name:'Dodatkowe obrażenia od ognia (tylko broń)', growth:0.35, group:3, weaponOnly:true},
+      {key:'val', name:'Dodatkowe obrażenia od energii (tylko broń)', growth:0.35, group:3, weaponOnly:true},
       {key:'dur', name:'Podwójne losowanie trafienia', growth:0.5, group:2},
       {key:'ling', name:'Modyfikator trafień dystansowych', growth:1, group:3},
       {key:'lorb', name:'Przełamanie odporności na uroki', growth:1, group:2},
@@ -1659,7 +1671,12 @@
       const gear = equipped[drifCtx.slotKey];
       const usedByOthers = gear.drifSlots.filter((s,i) => i!==drifCtx.idx && s.modKey).map(s => s.modKey);
       const q = drifSearch.value.trim().toLowerCase();
-      const list = MODIFIERS.filter(m => m.name.toLowerCase().includes(q));
+      const isWeaponSlot = drifCtx.slotKey === 'weapon';
+      const list = MODIFIERS.filter(m => m.name.toLowerCase().includes(q) && (isWeaponSlot || !m.weaponOnly));
+      if(list.length === 0){
+        drifPickerList.innerHTML = '<div class="item-picker-empty">Brak wyników.</div>';
+        return;
+      }
       drifPickerList.innerHTML = list.map(m => {
         const disabled = usedByOthers.includes(m.key);
         const selected = m.key === drifCtx.modKey;
@@ -1717,21 +1734,31 @@
         cell.style.left = leftPct + '%';
         cell.style.top = topPct + '%';
 
+        const slotWrap = document.createElement('div');
+        slotWrap.className = 'doll-slot-wrap';
+
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'doll-slot' + (gear ? ' filled' : '');
-        btn.textContent = gear ? gear.rank : '+';
         if(gear){
+          const fontSize = gear.itemName.length > 12 ? '0.68rem' : gear.itemName.length > 8 ? '0.78rem' : '0.88rem';
+          btn.innerHTML = `<span class="slot-item-name" style="font-size:${fontSize}">${gear.itemName}</span>`;
           const { cap, slots: slotCount } = maxSlotsFor(gear.rank, gear.inkTier, gear.inkLevel);
           const usedPower = gear.drifSlots.reduce((sum,s) => s.modKey ? sum + drifPower(MOD_BY_KEY[s.modKey], s.level) : sum, 0);
           btn.title = `${gear.itemName} — ranga ${gear.rank} — potęga ${usedPower}/${cap} — sloty ${slotCount}`;
         } else {
+          btn.textContent = '+';
           btn.title = 'Dodaj: ' + SLOT_LABELS[slotKey];
         }
         btn.addEventListener('click', () => openPicker(slotKey));
-        cell.appendChild(btn);
+        slotWrap.appendChild(btn);
 
         if(gear){
+          const rankBadge = document.createElement('span');
+          rankBadge.className = 'doll-rank-badge';
+          rankBadge.textContent = gear.rank;
+          slotWrap.appendChild(rankBadge);
+
           const gemsWrap = document.createElement('div');
           gemsWrap.className = 'doll-gems';
           gear.drifSlots.forEach((slot, idx) => {
@@ -1748,12 +1775,13 @@
             gem.addEventListener('click', (e) => { e.stopPropagation(); openDrifPicker(slotKey, idx); });
             gemsWrap.appendChild(gem);
           });
-          cell.appendChild(gemsWrap);
+          slotWrap.appendChild(gemsWrap);
         }
+        cell.appendChild(slotWrap);
 
         const caption = document.createElement('div');
         caption.className = 'doll-caption';
-        caption.innerHTML = `<span class="cap-type">${SLOT_LABELS[slotKey]}</span>${gear ? `<span class="cap-item">${gear.itemName}</span>${inkCaptionHtml(gear)}` : ''}`;
+        caption.innerHTML = `<span class="cap-type">${SLOT_LABELS[slotKey]}</span>${gear ? inkCaptionHtml(gear) : ''}`;
         if(gear){
           caption.querySelector('.cap-ink').addEventListener('click', (e) => { e.stopPropagation(); cycleInk(slotKey); });
         }
