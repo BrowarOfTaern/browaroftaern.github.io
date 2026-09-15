@@ -1167,7 +1167,9 @@
     let obstacles = [];
     let particles = [];
     let speed = 0.28;
-    const SPEED_MIN = 0.28, SPEED_MAX = 0.63;
+    const SPEED_MIN = 0.28, SPEED_MAX = 0.85;
+    const SPEED_STEP = 0.045; // przyrost prędkości co każde 100 punktów
+    let speedTier = 0;
     let spawnTimer = 0;
     let nextSpawnIn = 1200;
     let elapsed = 0;
@@ -1211,6 +1213,9 @@
 
     function jumpSound(){ beep(560, 0.08, 'square', 0.13); beep(760, 0.06, 'square', 0.09); }
     function duckSound(){ beep(220, 0.1, 'triangle', 0.1); beep(150, 0.12, 'triangle', 0.08); }
+    function levelUpSound(){ beep(523, 0.07, 'square', 0.1); beep(659, 0.07, 'square', 0.1); beep(784, 0.12, 'square', 0.12); }
+    let flashTimer = 0;
+    function flashLevelUp(){ flashTimer = 500; }
     function hitSound(){
       if(muted) return;
       const ac = ensureAudio();
@@ -1284,12 +1289,7 @@
       ctx.restore();
     }
 
-    function drawBat(x,y,w,h){
-      ctx.save();
-      ctx.translate(x,y);
-      ctx.fillStyle = '#c9432f';
-      ctx.strokeStyle = '#632119';
-      ctx.lineWidth = 1.4;
+    function drawSingleBat(w,h){
       ctx.beginPath();
       ctx.moveTo(w*0.5, h*0.2);
       ctx.lineTo(0, 0);
@@ -1301,6 +1301,24 @@
       ctx.lineTo(w, 0);
       ctx.closePath();
       ctx.fill(); ctx.stroke();
+    }
+    function drawBat(x,y,w,h){
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.fillStyle = '#c9432f';
+      ctx.strokeStyle = '#632119';
+      ctx.lineWidth = 1.4;
+      // przy większej szerokości rysujemy kilka nietoperzy obok siebie (chmara),
+      // zamiast rozciągać jeden kształt
+      const unit = 26;
+      const count = Math.max(1, Math.round(w / unit));
+      const bw = w / count;
+      for(let i=0;i<count;i++){
+        ctx.save();
+        ctx.translate(i*bw, (i%2===0) ? 0 : h*0.12);
+        drawSingleBat(bw*0.92, h);
+        ctx.restore();
+      }
       ctx.restore();
     }
 
@@ -1326,6 +1344,8 @@
       obstacles = [];
       particles = [];
       speed = SPEED_MIN;
+      speedTier = 0;
+      flashTimer = 0;
       spawnTimer = 0;
       nextSpawnIn = 1000 + Math.random()*500;
       elapsed = 0;
@@ -1360,7 +1380,10 @@
       if(canFly){
         const h = 14;
         const bottom = groundY - CROUCH_H - 6;
-        obstacles.push({ type:'fly', x: cw + 10, y: bottom - h, w: 24, h });
+        // szerokość rośnie z prędkością - przy większym tempie samym skokiem
+        // coraz trudniej "przelecieć nad" całą szerokością, trzeba się schylić
+        const w = Math.min(150, 60 + speed*140);
+        obstacles.push({ type:'fly', x: cw + 10, y: bottom - h, w, h });
       } else {
         const h = 22 + Math.random()*14;
         obstacles.push({ type:'ground', x: cw + 10, y: groundY - h, w: 12 + Math.random()*6, h });
@@ -1371,7 +1394,14 @@
       elapsed += dt;
       score += dt * 0.01;
       scoreEl.textContent = Math.floor(score);
-      speed = SPEED_MIN + Math.min(SPEED_MAX - SPEED_MIN, elapsed / 40000);
+
+      const tier = Math.floor(score / 100);
+      if(tier > speedTier){
+        speedTier = tier;
+        levelUpSound();
+        flashLevelUp();
+      }
+      speed = Math.min(SPEED_MAX, SPEED_MIN + speedTier * SPEED_STEP);
 
       player.vy += GRAVITY * dt;
       player.y += player.vy * dt;
@@ -1394,6 +1424,7 @@
 
       particles.forEach(p => { p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt*0.0022; });
       particles = particles.filter(p => p.life > 0);
+      if(flashTimer > 0) flashTimer = Math.max(0, flashTimer - dt);
 
       const pBox = playerBox();
       const hb = { x: pBox.x+6, y: pBox.y+4, w: pBox.w-12, h: pBox.h-8 };
@@ -1434,6 +1465,19 @@
         ctx.fill();
       });
       ctx.globalAlpha = 1;
+
+      if(flashTimer > 0){
+        const a = flashTimer / 500;
+        ctx.globalAlpha = a * 0.5;
+        ctx.fillStyle = '#d4a72c';
+        ctx.fillRect(0,0,cw,ch);
+        ctx.globalAlpha = a;
+        ctx.fillStyle = '#1a1409';
+        ctx.font = "bold 20px Georgia, serif";
+        ctx.textAlign = 'center';
+        ctx.fillText('Coraz szybciej!', cw/2, ch/2);
+        ctx.globalAlpha = 1;
+      }
     }
 
     function loop(ts){
