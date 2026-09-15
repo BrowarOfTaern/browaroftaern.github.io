@@ -505,6 +505,48 @@
   }
   .slot-readout{ font-size: 0.8rem; color: var(--eov); font-family: 'IBM Plex Mono', monospace; margin-left: auto; }
   .slot-warn{ font-size: 0.72rem; color: var(--voe); width: 100%; }
+  .build-panel{
+    margin-top: 30px; border: 1px solid var(--border-lit); border-radius: var(--radius);
+    background: var(--bg-3); padding: 22px;
+  }
+  .build-panel h3{ font-family:'Cinzel', serif; font-size: 1.1rem; color: var(--eov); margin-bottom: 16px; }
+  .build-save-bar{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 16px; }
+  .build-name-input{
+    flex:1; min-width:200px; background: var(--bg); border:1px solid var(--border-lit); color: var(--text);
+    border-radius:4px; padding:10px 12px; font-family:'IBM Plex Mono', monospace; font-size:0.9rem;
+  }
+  .build-list{ display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; }
+  .build-item{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    background: var(--bg-2); border:1px solid var(--border); border-radius:4px;
+    padding:10px 14px; cursor:pointer;
+  }
+  .build-item:hover{ border-color: var(--eov); background: var(--stone); }
+  .build-name{ font-family:'Cinzel', serif; color: var(--text); }
+  .build-meta{ font-size:0.75rem; color: var(--text-faint); font-family:'IBM Plex Mono', monospace; white-space:nowrap; }
+
+  .leaderboard{
+    margin-top: 22px; border: 1px solid var(--border-lit); border-radius: var(--radius);
+    background: var(--bg-3); padding: 20px 22px;
+  }
+  .leaderboard h3{ font-family:'Cinzel', serif; font-size: 1rem; color: var(--eov); margin-bottom: 14px; }
+  .leaderboard-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .leaderboard-list li{
+    display:flex; align-items:center; gap:10px;
+    background: var(--bg-2); border:1px solid var(--border); border-radius:4px; padding:8px 14px;
+    font-size:0.9rem;
+  }
+  .lb-rank{ font-family:'Cinzel Decorative', serif; color: var(--eov); width:22px; }
+  .lb-nick{ flex:1; color: var(--text); }
+  .lb-score{ font-family:'IBM Plex Mono', monospace; color: var(--eov); }
+
+  .score-save-row{ display:flex; gap:8px; margin: 6px 0; flex-wrap:wrap; justify-content:center; }
+  .score-save-row.hidden{ display:none; }
+  .score-nick-input{
+    background: var(--bg); border:1px solid var(--border-lit); color: var(--text);
+    border-radius:4px; padding:9px 10px; font-family:'IBM Plex Mono', monospace; font-size:0.85rem; width:150px;
+  }
+
   .drif-summary{
     margin-top: 30px; border: 1px solid var(--border-lit); border-radius: var(--radius);
     background: var(--bg-3); padding: 22px;
@@ -715,6 +757,15 @@
       <button class="btn ghost" id="drifRemoveBtn" style="margin-top:10px;">Usuń drif</button>
     </div>
 
+    <div class="build-panel">
+      <h3>Zapisane buildy gildii</h3>
+      <div class="build-save-bar">
+        <input type="text" class="build-name-input" id="buildNameInput" placeholder="Nazwa builda, np. Mag PVP" maxlength="40">
+        <button class="btn primary" id="buildSaveBtn" type="button">Zapisz aktualny build</button>
+      </div>
+      <div class="build-list" id="buildList"></div>
+    </div>
+
     <div class="drif-summary">
       <h3>Podsumowanie buildu</h3>
       <div id="drifSummaryBody"></div>
@@ -785,8 +836,17 @@
         <div class="game-overlay-title" id="gameOverlayTitle">Beczka Runner</div>
         <div class="game-overlay-sub" id="gameOverlaySub">Spacja / stuknięcie, żeby skoczyć nad flaszkami, strzałka w dół żeby uniknąć nietoperzy</div>
         <button class="btn primary" id="gameStartBtn">Start</button>
+        <div class="score-save-row hidden" id="scoreSaveRow">
+          <input type="text" class="score-nick-input" id="scoreNickInput" placeholder="Twój nick" maxlength="20">
+          <button class="btn primary" id="scoreSaveBtn" type="button">Zapisz wynik</button>
+        </div>
         <button class="btn ghost hidden" id="gameCopyBtn" type="button">Kopiuj wynik</button>
       </div>
+    </div>
+
+    <div class="leaderboard">
+      <h3>Top 5 — Beczka Runner</h3>
+      <ol class="leaderboard-list" id="leaderboardList"></ol>
     </div>
   </div>
 </section>
@@ -1263,10 +1323,12 @@
       crouching = false;
       scoreEl.textContent = '0';
       copyBtn.classList.add('hidden');
+      const saveRow = document.getElementById('scoreSaveRow');
+      if(saveRow) saveRow.classList.add('hidden');
     }
 
     function spawnObstacle(){
-      const canFly = elapsed > 5000 && Math.random() < 0.35;
+      const canFly = elapsed > 3000 && Math.random() < 0.45;
       if(canFly){
         const h = 14;
         const bottom = groundY - CROUCH_H - 6;
@@ -1375,6 +1437,8 @@
           done();
         }
       };
+      const saveRow = document.getElementById('scoreSaveRow');
+      if(saveRow) saveRow.classList.remove('hidden');
       overlay.classList.remove('hidden');
     }
 
@@ -1884,6 +1948,12 @@
 
     function render(){ renderDoll(); renderSummary(); }
     render();
+
+    // udostępnienie na zewnątrz - do zapisu/wczytu buildów przez Firebase
+    window.__drifyApi = {
+      getBuild: () => JSON.parse(JSON.stringify(equipped)),
+      loadBuild: (data) => { equipped = data || {}; render(); }
+    };
   })();
 
 
@@ -1897,6 +1967,120 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   })();
+</script>
+
+<script type="module">
+  // ---------- Firebase: zapisywanie buildów + tablica wyników gry ----------
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDLKDxlyvTIaQixIdaDZNfyAdfVSFy3L4I",
+    authDomain: "nrowaroftaern.firebaseapp.com",
+    databaseURL: "https://nrowaroftaern-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "nrowaroftaern",
+    storageBucket: "nrowaroftaern.firebasestorage.app",
+    messagingSenderId: "400221273310",
+    appId: "1:400221273310:web:19a309f81e07f619a3d64f"
+  };
+  const fbApp = initializeApp(firebaseConfig);
+  const db = getDatabase(fbApp);
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = String(str == null ? '' : str);
+    return d.innerHTML;
+  }
+
+  // ---------- zapisane buildy ----------
+  const buildNameInput = document.getElementById('buildNameInput');
+  const buildSaveBtn = document.getElementById('buildSaveBtn');
+  const buildListEl = document.getElementById('buildList');
+
+  if(buildSaveBtn){
+    buildSaveBtn.addEventListener('click', () => {
+      const name = (buildNameInput.value || '').trim();
+      if(!name){ alert('Podaj nazwę builda.'); return; }
+      const api = window.__drifyApi;
+      if(!api){ alert('Symulator jeszcze się ładuje, spróbuj za chwilę.'); return; }
+      const build = api.getBuild();
+      if(!build || Object.keys(build).length === 0){ alert('Załóż najpierw jakiś przedmiot, zanim zapiszesz build.'); return; }
+      buildSaveBtn.disabled = true;
+      const newRef = push(ref(db, 'builds'));
+      set(newRef, { name, equipped: build, savedAt: Date.now() })
+        .then(() => {
+          buildNameInput.value = '';
+          buildSaveBtn.textContent = 'Zapisano!';
+          setTimeout(() => { buildSaveBtn.textContent = 'Zapisz aktualny build'; buildSaveBtn.disabled = false; }, 1500);
+        })
+        .catch(err => {
+          alert('Nie udało się zapisać: ' + err.message);
+          buildSaveBtn.disabled = false;
+        });
+    });
+
+    onValue(ref(db, 'builds'), (snap) => {
+      const data = snap.val() || {};
+      const entries = Object.entries(data).sort((a,b) => (b[1].savedAt||0) - (a[1].savedAt||0));
+      if(entries.length === 0){
+        buildListEl.innerHTML = '<div class="drif-empty">Brak zapisanych buildów. Bądź pierwszy!</div>';
+        return;
+      }
+      buildListEl.innerHTML = entries.map(([id, b]) => {
+        const date = b.savedAt ? new Date(b.savedAt).toLocaleDateString('pl-PL') : '';
+        const itemCount = b.equipped ? Object.keys(b.equipped).length : 0;
+        return `<div class="build-item" data-id="${id}"><span class="build-name">${escapeHtml(b.name || '(bez nazwy)')}</span><span class="build-meta">${itemCount} przedm. · ${date}</span></div>`;
+      }).join('');
+      buildListEl.querySelectorAll('.build-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const id = el.dataset.id;
+          const b = data[id];
+          if(b && window.__drifyApi){
+            window.__drifyApi.loadBuild(b.equipped || {});
+            document.getElementById('dollGrid').scrollIntoView({ behavior:'smooth', block:'center' });
+          }
+        });
+      });
+    });
+  }
+
+  // ---------- tablica wyników Beczka Runner ----------
+  const scoreSaveBtn = document.getElementById('scoreSaveBtn');
+  const scoreNickInput = document.getElementById('scoreNickInput');
+  const leaderboardListEl = document.getElementById('leaderboardList');
+
+  if(scoreSaveBtn){
+    scoreSaveBtn.addEventListener('click', () => {
+      const nick = (scoreNickInput.value || '').trim();
+      if(!nick){ alert('Podaj nick.'); return; }
+      const scoreEl = document.getElementById('gameScore');
+      const score = parseInt(scoreEl.textContent, 10) || 0;
+      if(score <= 0) return;
+      scoreSaveBtn.disabled = true;
+      const newRef = push(ref(db, 'scores'));
+      set(newRef, { nick, score, ts: Date.now() })
+        .then(() => {
+          scoreSaveBtn.textContent = 'Zapisano!';
+          setTimeout(() => { scoreSaveBtn.textContent = 'Zapisz wynik'; scoreSaveBtn.disabled = false; }, 1500);
+        })
+        .catch(err => {
+          alert('Nie udało się zapisać: ' + err.message);
+          scoreSaveBtn.disabled = false;
+        });
+    });
+  }
+
+  if(leaderboardListEl){
+    onValue(ref(db, 'scores'), (snap) => {
+      const data = snap.val() || {};
+      const entries = Object.values(data).sort((a,b) => (b.score||0) - (a.score||0)).slice(0,5);
+      if(entries.length === 0){
+        leaderboardListEl.innerHTML = '<li>Nikt jeszcze nie zagrał. Bądź pierwszy!</li>';
+        return;
+      }
+      leaderboardListEl.innerHTML = entries.map((e,i) => `<li><span class="lb-rank">${i+1}.</span><span class="lb-nick">${escapeHtml(e.nick || '???')}</span><span class="lb-score">${e.score} 🍺</span></li>`).join('');
+    });
+  }
 </script>
 
 </body>
