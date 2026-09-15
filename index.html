@@ -519,11 +519,17 @@
   .build-item{
     display:flex; justify-content:space-between; align-items:center; gap:10px;
     background: var(--bg-2); border:1px solid var(--border); border-radius:4px;
-    padding:10px 14px; cursor:pointer;
+    padding:10px 14px;
   }
   .build-item:hover{ border-color: var(--eov); background: var(--stone); }
+  .build-load{ display:flex; flex-direction:column; gap:2px; cursor:pointer; flex:1; min-width:0; }
   .build-name{ font-family:'Cinzel', serif; color: var(--text); }
   .build-meta{ font-size:0.75rem; color: var(--text-faint); font-family:'IBM Plex Mono', monospace; white-space:nowrap; }
+  .build-delete{
+    background:none; border:1px solid var(--voe-dim); border-radius:4px; color: var(--voe);
+    font-size:0.85rem; padding:5px 9px; cursor:pointer; flex-shrink:0;
+  }
+  .build-delete:hover{ background: var(--voe-dim); color: var(--text); }
 
   .leaderboard{
     margin-top: 22px; border: 1px solid var(--border-lit); border-radius: var(--radius);
@@ -1159,6 +1165,7 @@
     const player = { x: 46, y: 0, w: 34, h: STAND_H, vy: 0, onGround: true };
     let crouching = false;
     let obstacles = [];
+    let particles = [];
     let speed = 0.28;
     const SPEED_MIN = 0.28, SPEED_MAX = 0.63;
     let spawnTimer = 0;
@@ -1172,9 +1179,10 @@
     let musicPlaying = false;
     let musicTimer = null;
     let musicIndex = 0;
-    // oryginalna, prosta melodyjka w klimacie karczmy - nie kopiuje żadnego istniejącego utworu
-    const MELODY = [392.00,440.00,523.25,440.00,392.00,349.23,392.00,440.00,
-                     523.25,587.33,659.25,587.33,523.25,440.00,392.00,349.23];
+    // oryginalna, dwugłosowa melodyjka w klimacie karczmy - nie kopiuje żadnego istniejącego utworu
+    const LEAD = [392,440,494,440,392,370,392,440, 494,523,587,523,494,440,392,370,
+                  392,494,587,494,392,440,494,587, 659,587,494,440,392,370,392,392];
+    const BASS = [196,196,261.63,261.63,293.66,293.66,196,196];
 
     function ensureAudio(){
       if(!audioCtx){
@@ -1202,6 +1210,7 @@
     }
 
     function jumpSound(){ beep(560, 0.08, 'square', 0.13); beep(760, 0.06, 'square', 0.09); }
+    function duckSound(){ beep(220, 0.1, 'triangle', 0.1); beep(150, 0.12, 'triangle', 0.08); }
     function hitSound(){
       if(muted) return;
       const ac = ensureAudio();
@@ -1220,7 +1229,10 @@
 
     function scheduleNextNote(){
       if(!musicPlaying) return;
-      beep(MELODY[musicIndex % MELODY.length], 0.16, 'square', 0.045);
+      beep(LEAD[musicIndex % LEAD.length], 0.16, 'square', 0.045);
+      if(musicIndex % 4 === 0){
+        beep(BASS[Math.floor(musicIndex/4) % BASS.length], 0.6, 'triangle', 0.055);
+      }
       musicIndex++;
       musicTimer = setTimeout(scheduleNextNote, 175);
     }
@@ -1312,6 +1324,7 @@
 
     function resetGame(){
       obstacles = [];
+      particles = [];
       speed = SPEED_MIN;
       spawnTimer = 0;
       nextSpawnIn = 1000 + Math.random()*500;
@@ -1325,6 +1338,21 @@
       copyBtn.classList.add('hidden');
       const saveRow = document.getElementById('scoreSaveRow');
       if(saveRow) saveRow.classList.add('hidden');
+    }
+
+    function spawnDustPuff(){
+      const px = player.x + player.w/2;
+      const py = groundY;
+      for(let i=0;i<6;i++){
+        particles.push({
+          x: px + (Math.random()-0.5)*14,
+          y: py - Math.random()*4,
+          vx: (Math.random()-0.5)*0.06,
+          vy: -0.02 - Math.random()*0.03,
+          r: 3 + Math.random()*3,
+          life: 1
+        });
+      }
     }
 
     function spawnObstacle(){
@@ -1364,6 +1392,9 @@
       obstacles.forEach(o => o.x -= speed * dt);
       obstacles = obstacles.filter(o => o.x + o.w > -10);
 
+      particles.forEach(p => { p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt*0.0022; });
+      particles = particles.filter(p => p.life > 0);
+
       const pBox = playerBox();
       const hb = { x: pBox.x+6, y: pBox.y+4, w: pBox.w-12, h: pBox.h-8 };
       for(const o of obstacles){
@@ -1394,6 +1425,15 @@
       const pBox = playerBox();
       drawBarrel(pBox.x, pBox.y, pBox.w, pBox.h);
       obstacles.forEach(o => o.type === 'fly' ? drawBat(o.x, o.y, o.w, o.h) : drawBottle(o.x, o.y, o.w, o.h));
+
+      particles.forEach(p => {
+        ctx.globalAlpha = Math.max(0, p.life) * 0.5;
+        ctx.fillStyle = '#c9bfa4';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
     }
 
     function loop(ts){
@@ -1454,7 +1494,12 @@
 
     function setCrouch(on){
       if(state !== 'running') return;
+      const wasCrouching = crouching;
       crouching = on && player.onGround;
+      if(crouching && !wasCrouching){
+        duckSound();
+        spawnDustPuff();
+      }
     }
 
     startBtn.addEventListener('click', startGame);
@@ -1972,7 +2017,7 @@
 <script type="module">
   // ---------- Firebase: zapisywanie buildów + tablica wyników gry ----------
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDLKDxlyvTIaQixIdaDZNfyAdfVSFy3L4I",
@@ -2019,6 +2064,8 @@
         });
     });
 
+    const BUILD_DELETE_PASSWORD = 'piwo';
+
     onValue(ref(db, 'builds'), (snap) => {
       const data = snap.val() || {};
       const entries = Object.entries(data).sort((a,b) => (b[1].savedAt||0) - (a[1].savedAt||0));
@@ -2029,9 +2076,12 @@
       buildListEl.innerHTML = entries.map(([id, b]) => {
         const date = b.savedAt ? new Date(b.savedAt).toLocaleDateString('pl-PL') : '';
         const itemCount = b.equipped ? Object.keys(b.equipped).length : 0;
-        return `<div class="build-item" data-id="${id}"><span class="build-name">${escapeHtml(b.name || '(bez nazwy)')}</span><span class="build-meta">${itemCount} przedm. · ${date}</span></div>`;
+        return `<div class="build-item" data-id="${id}">
+          <span class="build-load" data-id="${id}"><span class="build-name">${escapeHtml(b.name || '(bez nazwy)')}</span><span class="build-meta">${itemCount} przedm. · ${date}</span></span>
+          <button type="button" class="build-delete" data-id="${id}" title="Usuń build">🗑</button>
+        </div>`;
       }).join('');
-      buildListEl.querySelectorAll('.build-item').forEach(el => {
+      buildListEl.querySelectorAll('.build-load').forEach(el => {
         el.addEventListener('click', () => {
           const id = el.dataset.id;
           const b = data[id];
@@ -2039,6 +2089,17 @@
             window.__drifyApi.loadBuild(b.equipped || {});
             document.getElementById('dollGrid').scrollIntoView({ behavior:'smooth', block:'center' });
           }
+        });
+      });
+      buildListEl.querySelectorAll('.build-delete').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = el.dataset.id;
+          const b = data[id];
+          const pass = prompt(`Usuwasz build "${b ? b.name : ''}". Podaj hasło gildii, żeby potwierdzić:`);
+          if(pass === null) return;
+          if(pass !== BUILD_DELETE_PASSWORD){ alert('Złe hasło — build nie został usunięty.'); return; }
+          remove(ref(db, 'builds/' + id)).catch(err => alert('Nie udało się usunąć: ' + err.message));
         });
       });
     });
